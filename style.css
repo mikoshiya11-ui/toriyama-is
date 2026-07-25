@@ -1,0 +1,107 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background-color: #f3efe3;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  color: #111111;
+  font-family: -apple-system, "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
+  min-height: 100vh;
+}
+
+.wrap {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 72px 24px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.logo {
+  width: 288px;
+  margin-bottom: 40px;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 288px;
+}
+
+.nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 15px;
+  font-size: 13px;
+  letter-spacing: 1px;
+  color: #111111;
+  background: transparent;
+  border: 1px solid #111111;
+  border-radius: 2px;
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.nav-btn:hover {
+  background: #111111;
+  color: #ffffff;
+}
+
+.back {
+  margin-top: 48px;
+  font-size: 12px;
+  color: #888880;
+  text-decoration: none;
+  letter-spacing: 1px;
+}
+
+.back:hover {
+  color: #111111;
+}
+
+.page-title {
+  font-size: 15px;
+  letter-spacing: 2px;
+  margin: 0 0 8px;
+}
+
+.page-note {
+  font-size: 12px;
+  color: #888880;
+  text-align: center;
+  line-height: 1.8;
+  margin: 0;
+}
+
+.store-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.store-item {
+  padding: 14px;
+  border: 1px solid #d3d1c7;
+  border-radius: 2px;
+  font-size: 13px;
+  letter-spacing: 1px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.store-item.confirmed {
+  border-color: #111111;
+}
+
+.store-tag {
+  font-size: 11px;
+  color: #888880;
+}
