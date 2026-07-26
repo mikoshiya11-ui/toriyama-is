@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>希望シフト送信 | 鳥やま 社内システム</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+  <img src="../assets/logo.png" alt="鳥やま" class="logo" style="width:64px;margin-bottom:24px;">
+  <span class="demo-tag">テスト版・仮データ</span>
+  <h1 class="page-title">希望シフト送信</h1>
+  <p class="page-note" style="margin-bottom:16px;">来週、働ける曜日と時間を選んでください</p>
+
+  <div class="step" id="form-area">
+    <div class="day-row"><label><input type="checkbox">月曜</label><input class="field" type="time" value="17:00"><span>〜</span><input class="field" type="time" value="22:00"></div>
+    <div class="day-row"><label><input type="checkbox">火曜</label><input class="field" type="time" value="17:00"><span>〜</span><input class="field" type="time" value="22:00"></div>
+    <div class="day-row"><label><input type="checkbox">水曜</label><input class="field" type="time" value="17:00"><span>〜</span><input class="field" type="time" value="22:00"></div>
+    <div class="day-row"><label><input type="checkbox">木曜</label><input class="field" type="time" value="17:00"><span>〜</span><input class="field" type="time" value="22:00"></div>
+    <div class="day-row"><label><input type="checkbox">金曜</label><input class="field" type="time" value="17:00"><span>〜</span><input class="field" type="time" value="22:00"></div>
+    <div class="day-row"><label><input type="checkbox">土曜</label><input class="field" type="time" value="16:00"><span>〜</span><input class="field" type="time" value="23:00"></div>
+    <div class="day-row"><label><input type="checkbox">日曜</label><input class="field" type="time" value="16:00"><span>〜</span><input class="field" type="time" value="23:00"></div>
+
+    <button class="nav-btn" style="width:100%;margin-top:20px;" onclick="submitShift()">この内容で送信する</button>
+    <p class="confirm-msg" id="confirm-msg" style="display:none;">送信しました（テスト表示）</p>
+  </div>
+
+  <a class="back" href="kintai-shift.html">シフト管理へ戻る</a>
+</div>
+
+<script>
+function submitShift() {
+  document.getElementById("confirm-msg").style.display = "block";
+}
+</script>
+</body>
+</html>

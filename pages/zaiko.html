@@ -8,10 +8,111 @@
 </head>
 <body>
 <div class="wrap">
-  <img src="../assets/logo.png" alt="鳥やま" class="logo" style="width:64px;margin-bottom:32px;">
+  <img src="../assets/logo.png" alt="鳥やま" class="logo" style="width:64px;margin-bottom:24px;">
+  <span class="demo-tag">テスト版・仮データ</span>
   <h1 class="page-title">在庫管理</h1>
-  <p class="page-note">準備中です。<br>店舗ごとの食材・消耗品の在庫状況を確認できるようになります。</p>
+  <p class="page-note" style="margin-bottom:8px;">品目ごとに今の状態を選んで更新してください</p>
+
+  <div class="step" style="width:288px;">
+    <p class="stock-cat">食材</p>
+
+    <div class="stock-row">
+      <div class="stock-top"><span>鶏もも肉</span><span class="stock-qty">3.2kg</span></div>
+      <div class="stock-bottom">
+        <select class="stock-select" data-stock><option>要発注</option><option selected>やや少</option><option>十分</option></select>
+        <button class="order-btn" onclick="orderItem(this)">発注</button>
+      </div>
+    </div>
+
+    <div class="stock-row">
+      <div class="stock-top"><span>鶏むね肉</span><span class="stock-qty">8.0kg</span></div>
+      <div class="stock-bottom">
+        <select class="stock-select" data-stock><option>要発注</option><option>やや少</option><option selected>十分</option></select>
+        <button class="order-btn" onclick="orderItem(this)">発注</button>
+      </div>
+    </div>
+
+    <div class="stock-row">
+      <div class="stock-top"><span>手羽先</span><span class="stock-qty">1.1kg</span></div>
+      <div class="stock-bottom">
+        <select class="stock-select" data-stock><option selected>要発注</option><option>やや少</option><option>十分</option></select>
+        <button class="order-btn" onclick="orderItem(this)">発注</button>
+      </div>
+    </div>
+
+    <div class="stock-row">
+      <div class="stock-top"><span>炭</span><span class="stock-qty">12kg</span></div>
+      <div class="stock-bottom">
+        <select class="stock-select" data-stock><option>要発注</option><option>やや少</option><option selected>十分</option></select>
+        <button class="order-btn" onclick="orderItem(this)">発注</button>
+      </div>
+    </div>
+
+    <p class="stock-cat">ドリンク</p>
+
+    <div class="stock-row">
+      <div class="stock-top"><span>生ビール（樽）</span><span class="stock-qty">2樽</span></div>
+      <div class="stock-bottom">
+        <select class="stock-select" data-stock><option>要発注</option><option>やや少</option><option selected>十分</option></select>
+        <button class="order-btn" onclick="orderItem(this)">発注</button>
+      </div>
+    </div>
+
+    <div class="stock-row">
+      <div class="stock-top"><span>日本酒</span><span class="stock-qty">4本</span></div>
+      <div class="stock-bottom">
+        <select class="stock-select" data-stock><option>要発注</option><option selected>やや少</option><option>十分</option></select>
+        <button class="order-btn" onclick="orderItem(this)">発注</button>
+      </div>
+    </div>
+
+    <p class="stock-cat">消耗品</p>
+
+    <div class="stock-row">
+      <div class="stock-top"><span>おしぼり</span><span class="stock-qty">60枚</span></div>
+      <div class="stock-bottom">
+        <select class="stock-select" data-stock><option>要発注</option><option>やや少</option><option selected>十分</option></select>
+        <button class="order-btn" onclick="orderItem(this)">発注</button>
+      </div>
+    </div>
+
+    <div class="stock-row">
+      <div class="stock-top"><span>割り箸</span><span class="stock-qty">15膳</span></div>
+      <div class="stock-bottom">
+        <select class="stock-select" data-stock><option selected>要発注</option><option>やや少</option><option>十分</option></select>
+        <button class="order-btn" onclick="orderItem(this)">発注</button>
+      </div>
+    </div>
+
+    <button class="nav-btn" style="width:100%;margin-top:20px;" onclick="saveStock()">この内容で更新する</button>
+    <p class="confirm-msg" id="confirm-msg" style="display:none;">更新しました（テスト表示）</p>
+  </div>
+
   <a class="back" href="../index.html">トップへ戻る</a>
 </div>
+
+<script>
+function colorSelect(el) {
+  var v = el.value;
+  if (v === "要発注") { el.style.color = "#993556"; }
+  else if (v === "やや少") { el.style.color = "#854f0b"; }
+  else { el.style.color = "#3b6d11"; }
+}
+
+var selects = document.querySelectorAll("[data-stock]");
+for (var i = 0; i < selects.length; i++) {
+  colorSelect(selects[i]);
+  selects[i].addEventListener("change", function () { colorSelect(this); });
+}
+
+function orderItem(btn) {
+  var ordered = btn.classList.toggle("ordered");
+  btn.textContent = ordered ? "発注済み" : "発注";
+}
+
+function saveStock() {
+  document.getElementById("confirm-msg").style.display = "block";
+}
+</script>
 </body>
 </html>

@@ -112,3 +112,269 @@ body {
   font-size: 11px;
   color: #888880;
 }
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.step {
+  width: 288px;
+}
+
+.field {
+  width: 100%;
+  display: block;
+  padding: 12px;
+  margin-bottom: 10px;
+  border: 1px solid #111111;
+  border-radius: 2px;
+  color: #111111;
+  background: transparent;
+  font-size: 13px;
+}
+
+.field:focus {
+  outline: none;
+  border-width: 2px;
+}
+
+.error-msg {
+  color: #993556;
+  font-size: 12px;
+  margin: -2px 0 10px;
+}
+
+.result-name {
+  font-size: 14px;
+  letter-spacing: 1px;
+  margin: 0 0 16px;
+}
+
+.result-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.result-table th,
+.result-table td {
+  border-bottom: 1px solid #d3d1c7;
+  padding: 8px 4px;
+  text-align: left;
+  font-weight: 400;
+}
+
+.result-table th {
+  color: #888880;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+
+.demo-tag {
+  font-size: 11px;
+  color: #888880;
+  letter-spacing: 1px;
+  margin: 0 0 24px;
+  padding: 4px 10px;
+  border: 1px solid #d3d1c7;
+  border-radius: 999px;
+}
+
+.day-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid #d3d1c7;
+  font-size: 13px;
+}
+
+.day-row label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 72px;
+  flex-shrink: 0;
+}
+
+.day-row .field {
+  margin-bottom: 0;
+  padding: 8px;
+  width: 90px;
+  font-size: 12px;
+}
+
+.day-row span {
+  color: #888880;
+  font-size: 12px;
+}
+
+.confirm-msg {
+  color: #3b6d11;
+  font-size: 13px;
+  margin: 16px 0 0;
+  text-align: center;
+}
+
+.stock-cat {
+  font-size: 11px;
+  color: #888880;
+  letter-spacing: 2px;
+  margin: 20px 0 6px;
+  width: 100%;
+}
+
+.stock-cat:first-of-type {
+  margin-top: 0;
+}
+
+.stock-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 0;
+  border-bottom: 1px solid #d3d1c7;
+  width: 100%;
+  font-size: 13px;
+}
+
+.stock-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.stock-qty {
+  color: #888880;
+  font-size: 12px;
+}
+
+.stock-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.stock-select {
+  border: 1px solid #111111;
+  border-radius: 2px;
+  background: transparent;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.order-btn {
+  font-size: 11px;
+  padding: 6px 10px;
+  border: 1px solid #111111;
+  border-radius: 2px;
+  background: transparent;
+  color: #111111;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.order-btn:hover {
+  background: #111111;
+  color: #ffffff;
+}
+
+.order-btn.ordered {
+  border-color: #3b6d11;
+  color: #3b6d11;
+}
+
+.order-btn.ordered:hover {
+  background: transparent;
+  color: #3b6d11;
+}
+
+.post-form {
+  width: 100%;
+  margin-bottom: 24px;
+}
+
+.post-form textarea.field {
+  height: 72px;
+  resize: none;
+  font-family: inherit;
+}
+
+.post-card {
+  width: 100%;
+  border-bottom: 1px solid #d3d1c7;
+  padding: 14px 0;
+}
+
+.post-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
+.post-store {
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: #111111;
+}
+
+.post-time {
+  font-size: 11px;
+  color: #888880;
+}
+
+.post-body {
+  font-size: 13px;
+  line-height: 1.7;
+  margin: 0 0 10px;
+}
+
+.post-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.read-badge {
+  font-size: 11px;
+  color: #888880;
+}
+
+.read-btn {
+  font-size: 11px;
+  padding: 5px 10px;
+  border: 1px solid #111111;
+  border-radius: 2px;
+  background: transparent;
+  color: #111111;
+  white-space: nowrap;
+}
+
+.read-btn:hover {
+  background: #111111;
+  color: #ffffff;
+}
+
+.read-btn.done {
+  border-color: #3b6d11;
+  color: #3b6d11;
+  background: transparent;
+}
+
+.read-btn.done:hover {
+  background: transparent;
+  color: #3b6d11;
+}
+
+.report-row {
+  display: flex;
+  gap: 8px;
+}
+
+.report-row .field {
+  flex: 1;
+}

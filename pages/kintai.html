@@ -8,10 +8,95 @@
 </head>
 <body>
 <div class="wrap">
-  <img src="../assets/logo.png" alt="鳥やま" class="logo" style="width:64px;margin-bottom:32px;">
+  <img src="../assets/logo.png" alt="鳥やま" class="logo" style="width:64px;margin-bottom:24px;">
+  <span class="demo-tag">テスト版・仮データ</span>
   <h1 class="page-title">勤怠管理</h1>
-  <p class="page-note">準備中です。<br>ICカードタッチによる打刻機能を実装予定です。</p>
-  <a class="back" href="../index.html">トップへ戻る</a>
+
+  <div id="step-top" class="step">
+    <div class="nav" style="width:100%;margin-top:16px;">
+      <button class="nav-btn" onclick="goTo('role')">勤怠確認</button>
+      <a class="nav-btn" href="kintai-shift.html">シフト管理</a>
+    </div>
+  </div>
+
+  <div id="step-role" class="step" style="display:none;">
+    <p class="page-note" style="margin-bottom:16px;">どちらで確認しますか？</p>
+    <div class="nav" style="width:100%;">
+      <button class="nav-btn" onclick="goTo('baito')">バイト</button>
+      <button class="nav-btn" onclick="goTo('shain')">社員</button>
+    </div>
+  </div>
+
+  <div id="step-baito" class="step" style="display:none;">
+    <select id="baito-name" class="field">
+      <option value="">お名前を選択</option>
+      <option>山田</option>
+      <option>佐藤</option>
+      <option>高橋</option>
+      <option>伊藤</option>
+    </select>
+    <input id="baito-pin" class="field" type="password" inputmode="numeric" maxlength="4" placeholder="PIN（4桁）">
+    <p id="baito-error" class="error-msg" style="display:none;">名前とPINを確認してください（テスト版のPINは 1234）</p>
+    <button class="nav-btn" style="width:100%;" onclick="loginBaito()">確認する</button>
+  </div>
+
+  <div id="step-shain" class="step" style="display:none;">
+    <input id="shain-id" class="field" type="text" placeholder="社員ID">
+    <input id="shain-pin" class="field" type="password" inputmode="numeric" maxlength="4" placeholder="PIN（4桁）">
+    <p id="shain-error" class="error-msg" style="display:none;">IDとPINを確認してください（テスト版は 0001〜0002 / PIN 0000）</p>
+    <button class="nav-btn" style="width:100%;" onclick="loginShain()">確認する</button>
+  </div>
+
+  <div id="step-result" class="step" style="display:none;">
+    <p class="result-name" id="result-name"></p>
+    <table class="result-table">
+      <tr><th>日付</th><th>出勤</th><th>退勤</th><th>実働</th></tr>
+      <tr><td>7/23</td><td>17:02</td><td>22:14</td><td>5:12</td></tr>
+      <tr><td>7/24</td><td>16:58</td><td>23:05</td><td>6:07</td></tr>
+      <tr><td>7/25</td><td>17:00</td><td>21:30</td><td>4:30</td></tr>
+    </table>
+  </div>
+
+  <a class="back" href="../index.html" id="back-link">トップへ戻る</a>
 </div>
+
+<script>
+var staffBaito = { "山田": "1234", "佐藤": "1234", "高橋": "1234", "伊藤": "1234" };
+var staffShain = { "0001": { pin: "0000", name: "店長" }, "0002": { pin: "0000", name: "副店長" } };
+
+function goTo(step) {
+  var steps = ["top", "role", "baito", "shain", "result"];
+  for (var i = 0; i < steps.length; i++) {
+    document.getElementById("step-" + steps[i]).style.display = "none";
+  }
+  document.getElementById("step-" + step).style.display = "block";
+}
+
+function loginBaito() {
+  var name = document.getElementById("baito-name").value;
+  var pin = document.getElementById("baito-pin").value;
+  var errorEl = document.getElementById("baito-error");
+  if (name && staffBaito[name] === pin) {
+    errorEl.style.display = "none";
+    document.getElementById("result-name").textContent = name + " さんの勤怠（直近3日・仮データ）";
+    goTo("result");
+  } else {
+    errorEl.style.display = "block";
+  }
+}
+
+function loginShain() {
+  var id = document.getElementById("shain-id").value;
+  var pin = document.getElementById("shain-pin").value;
+  var errorEl = document.getElementById("shain-error");
+  if (staffShain[id] && staffShain[id].pin === pin) {
+    errorEl.style.display = "none";
+    document.getElementById("result-name").textContent = staffShain[id].name + " さんの勤怠（直近3日・仮データ）";
+    goTo("result");
+  } else {
+    errorEl.style.display = "block";
+  }
+}
+</script>
 </body>
 </html>

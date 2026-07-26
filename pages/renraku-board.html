@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>掲示板 | 鳥やま 社内システム</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+  <img src="../assets/logo.png" alt="鳥やま" class="logo" style="width:64px;margin-bottom:24px;">
+  <span class="demo-tag">テスト版・仮データ</span>
+  <h1 class="page-title">掲示板</h1>
+  <p class="page-note" style="margin-bottom:16px;">全店舗のスタッフに表示されるお知らせ掲示板です</p>
+
+  <div class="step post-form" style="width:288px;">
+    <select class="field" id="post-store">
+      <option>新安城店</option>
+      <option>本店</option>
+      <option>駅前店</option>
+    </select>
+    <textarea class="field" id="post-body" placeholder="お知らせ内容を入力"></textarea>
+    <button class="nav-btn" style="width:100%;" onclick="postNotice()">この内容で投稿する</button>
+  </div>
+
+  <div class="step" id="post-list" style="width:288px;"></div>
+
+  <a class="back" href="renraku.html">社内連絡へ戻る</a>
+</div>
+
+<script>
+var totalStaff = 6;
+var posts = [
+  { store: "本店", time: "14:20", body: "明日の仕込み一部前倒しします。", read: 4 },
+  { store: "駅前店", time: "11:05", body: "新人研修の日程共有です。来週火曜17時からお願いします。", read: 6 },
+  { store: "新安城店", time: "昨日", body: "土曜のイベント用に炭を多めに用意してください。", read: 5 }
+];
+
+function render() {
+  var list = document.getElementById("post-list");
+  list.innerHTML = "";
+  for (var i = 0; i < posts.length; i++) {
+    (function (idx) {
+      var p = posts[idx];
+      var card = document.createElement("div");
+      card.className = "post-card";
+
+      var header = document.createElement("div");
+      header.className = "post-header";
+      var store = document.createElement("span");
+      store.className = "post-store";
+      store.textContent = p.store;
+      var time = document.createElement("span");
+      time.className = "post-time";
+      time.textContent = p.time;
+      header.appendChild(store);
+      header.appendChild(time);
+
+      var body = document.createElement("p");
+      body.className = "post-body";
+      body.textContent = p.body;
+
+      var footer = document.createElement("div");
+      footer.className = "post-footer";
+      var badge = document.createElement("span");
+      badge.className = "read-badge";
+      badge.textContent = "既読 " + p.read + "/" + totalStaff;
+      var btn = document.createElement("button");
+      btn.className = "read-btn" + (p.readByMe ? " done" : "");
+      btn.textContent = p.readByMe ? "既読済み" : "既読にする";
+      btn.onclick = function () {
+        if (!p.readByMe) {
+          p.readByMe = true;
+          p.read = Math.min(p.read + 1, totalStaff);
+          render();
+        }
+      };
+      footer.appendChild(badge);
+      footer.appendChild(btn);
+
+      card.appendChild(header);
+      card.appendChild(body);
+      card.appendChild(footer);
+      list.appendChild(card);
+    })(i);
+  }
+}
+
+function postNotice() {
+  var store = document.getElementById("post-store").value;
+  var body = document.getElementById("post-body").value;
+  if (!body) { return; }
+  posts.unshift({ store: store, time: "たった今", body: body, read: 0, readByMe: false });
+  document.getElementById("post-body").value = "";
+  render();
+}
+
+render();
+</script>
+</body>
+</html>
