@@ -25,6 +25,13 @@ body {
   margin-bottom: 40px;
 }
 
+.system-name {
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: #888880;
+  margin: 0 0 40px;
+}
+
 .nav {
   display: flex;
   flex-direction: column;
