@@ -60,6 +60,18 @@ body {
   color: #ffffff;
 }
 
+.nav-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  border-color: #888880;
+  color: #888880;
+}
+
+.nav-btn:disabled:hover {
+  background: transparent;
+  color: #888880;
+}
+
 .back {
   margin-top: 48px;
   font-size: 12px;
@@ -634,6 +646,75 @@ button {
   color: #3b6d11;
 }
 
+.zaiko-toolrow {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.zaiko-check-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #111111;
+}
+
+.zaiko-summary {
+  width: 100%;
+  font-size: 11px;
+  color: #888880;
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+
+.zaiko-summary .low-count {
+  color: #993556;
+}
+
+.stock-row.low-stock {
+  border-left: 3px solid #993556;
+  background: rgba(153, 53, 86, 0.06);
+  padding-left: 8px;
+}
+
+.low-tag {
+  font-size: 10px;
+  color: #993556;
+  border: 1px solid #993556;
+  padding: 1px 6px;
+  letter-spacing: 1px;
+}
+
+.stock-fields {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #888880;
+}
+
+.stock-fields label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.stock-num {
+  width: 60px;
+  padding: 5px 6px;
+  border: 1px solid #111111;
+  border-radius: 2px;
+  background: transparent;
+  font-size: 12px;
+  font-family: inherit;
+  color: #111111;
+}
+
 .filter-tabs {
   display: flex;
   gap: 8px;
@@ -886,6 +967,10 @@ button {
   background: #111111;
 }
 
+.shift-gantt-legend .lg-swatch.preview {
+  border: 2px dashed #111111;
+}
+
 .shift-gantt-card {
   width: 100%;
   border: 1px solid #111111;
@@ -941,7 +1026,7 @@ button {
 .shift-gantt-row {
   display: flex;
   border-bottom: 1px solid #e5e2d9;
-  min-height: 46px;
+  min-height: 82px;
 }
 
 .shift-gantt-row:nth-child(even) {
@@ -976,7 +1061,7 @@ button {
   align-items: center;
   justify-content: center;
   font-size: 11px;
-  color: #c7cfdc;
+  color: transparent;
   cursor: pointer;
 }
 
@@ -994,8 +1079,8 @@ button {
 
 .shift-bar {
   position: absolute;
-  top: 20px;
-  height: 18px;
+  top: 26px;
+  height: 34px;
   background: #111111;
   color: #ffffff;
   cursor: grab;
@@ -1009,12 +1094,30 @@ button {
   cursor: grabbing;
 }
 
-.shift-bar .bar-label {
-  font-size: 10px;
-  padding: 0 5px;
+.shift-bar.preview {
+  background: #f9f7f2;
+  color: #111111;
+  border: 2px dashed #111111;
+  box-shadow: none;
+}
+
+.shift-bar.preview .bar-clear {
+  background: #f9f7f2;
+}
+
+.shift-bar-time-label {
+  position: absolute;
+  left: 0;
+  top: 62px;
+  width: 100%;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #111111;
   white-space: nowrap;
-  overflow: hidden;
+  letter-spacing: 0.5px;
   pointer-events: none;
+  z-index: 1;
 }
 
 .shift-bar .handle {
@@ -1033,27 +1136,59 @@ button {
   right: -2px;
 }
 
-.shift-bar .bar-clear {
-  position: absolute;
-  top: 50%;
-  right: 1px;
-  transform: translateY(-50%);
-  width: 14px;
-  height: 14px;
-  border: none;
-  border-radius: 50%;
-  background: #ffffff;
-  color: #993556;
-  font-size: 9px;
-  line-height: 14px;
-  text-align: center;
-  padding: 0;
-  cursor: pointer;
+.shift-gantt-inner.zoomed-out .shift-bar-time-label {
   display: none;
 }
 
-.shift-bar:hover .bar-clear {
-  display: block;
+.shift-gantt-inner.zoomed-out .shift-bar .handle {
+  display: none;
+}
+
+.shift-gantt-inner.zoomed-out .shift-bar {
+  cursor: default;
+}
+
+.shift-gantt-inner.zoomed-out .shift-gantt-day-cell {
+  font-size: 9px;
+  padding: 8px 0 8px 0;
+  letter-spacing: 0;
+}
+
+.shift-gantt-inner.zoomed-out .empty-hint {
+  font-size: 9px;
+}
+
+.bar-context-menu {
+  position: fixed;
+  z-index: 50;
+  display: none;
+  flex-direction: column;
+  min-width: 150px;
+  background: #ffffff;
+  border: 1px solid #111111;
+  box-shadow: 0 2px 10px rgba(17, 17, 17, 0.25);
+}
+
+.bar-context-menu button {
+  background: none;
+  border: none;
+  border-bottom: 1px solid #e5e2d9;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-family: inherit;
+  letter-spacing: 1px;
+  text-align: left;
+  color: #111111;
+  cursor: pointer;
+}
+
+.bar-context-menu button:last-child {
+  border-bottom: none;
+  color: #993556;
+}
+
+.bar-context-menu button:hover {
+  background: #f9f7f2;
 }
 
 .shift-store-select {

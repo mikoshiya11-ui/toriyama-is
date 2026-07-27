@@ -12,13 +12,17 @@
   <span class="demo-tag">テスト版・仮データ</span>
   <h1 class="page-title">確定シフト確認</h1>
 
-  <select class="field" id="staff-name" onchange="render()" style="margin-bottom:12px;">
-    <option>山田</option>
-    <option>佐藤</option>
-    <option>高橋</option>
-    <option>伊藤</option>
-    <option>店長</option>
-    <option>副店長</option>
+  <select class="field" id="store-select" onchange="onStoreChange()" style="margin-bottom:8px;">
+    <option value="">店舗を選択</option>
+    <option>新安城店</option>
+    <option>本店</option>
+    <option>駅前店</option>
+    <option>南店</option>
+    <option>西店</option>
+  </select>
+
+  <select class="field" id="staff-name" onchange="render()" style="margin-bottom:12px;" disabled>
+    <option value="">先に店舗を選択</option>
   </select>
 
   <div class="nav" style="flex-direction:row;width:288px;gap:6px;margin-bottom:16px;">
@@ -65,18 +69,46 @@ function changeMonth(delta) {
   render();
 }
 
+function onStoreChange() {
+  var store = document.getElementById("store-select").value;
+  var nameSel = document.getElementById("staff-name");
+  nameSel.innerHTML = "";
+
+  if (!store) {
+    nameSel.disabled = true;
+    var opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "先に店舗を選択";
+    nameSel.appendChild(opt);
+  } else {
+    nameSel.disabled = false;
+    (STORE_STAFF[store] || []).forEach(function (name) {
+      var o = document.createElement("option");
+      o.value = name;
+      o.textContent = name + (isShain(name) ? "（社員）" : "（バイト）");
+      nameSel.appendChild(o);
+    });
+  }
+  render();
+}
+
 function render() {
   document.getElementById("month-label").textContent = monthLabel(curYear, curMonthIdx);
   var name = document.getElementById("staff-name").value;
+  var title = document.getElementById("result-title");
+  var body = document.getElementById("result-body");
+  body.innerHTML = "";
+
+  if (!name) {
+    title.textContent = "店舗とお名前を選択してください";
+    return;
+  }
+
   var confirmed = getConfirmed();
   var mKey = monthKey(curYear, curMonthIdx);
   var record = confirmed[name] || {};
   var hasMonthData = Object.keys(record).some(function (k) { return k.indexOf(mKey) === 0; });
   var numDays = daysInMonth(curYear, curMonthIdx);
-
-  var title = document.getElementById("result-title");
-  var body = document.getElementById("result-body");
-  body.innerHTML = "";
 
   if (!hasMonthData && !fallbackPattern[name]) {
     title.textContent = name + "さんの" + monthLabel(curYear, curMonthIdx) + "の確定シフトはまだありません";

@@ -30,12 +30,6 @@
       <p class="card-result-sub" style="margin-bottom:12px;">読み取ったID: <span id="new-card-id"></span></p>
       <select class="field" id="new-card-name">
         <option value="">お名前を選択</option>
-        <option>山田（バイト）</option>
-        <option>佐藤（バイト）</option>
-        <option>高橋（バイト）</option>
-        <option>伊藤（バイト）</option>
-        <option>店長（社員）</option>
-        <option>副店長（社員）</option>
       </select>
       <button class="nav-btn" style="width:100%;" onclick="registerCard()">このカードを登録する</button>
     </div>
@@ -51,13 +45,25 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="../supabase-client.js"></script>
+<script src="../shift-utils.js"></script>
 <script>
 /*
-  このリーダー端末が固定されている店舗コード。
+  このリーダー端末が固定されている店舗コード／店舗名。
   設置時に v2/supabase/schema.sql の stores.code と合わせて設定する。
   （打刻端末は店舗を選択させない仕様のため、ここで固定する）
 */
 var STORE_CODE = "shinanjo";
+var STORE_NAME = "新安城店";
+
+function populateNameSelect() {
+  var sel = document.getElementById("new-card-name");
+  (STORE_STAFF[STORE_NAME] || []).forEach(function (name) {
+    var o = document.createElement("option");
+    o.value = name;
+    o.textContent = name + (isShain(name) ? "（社員）" : "（バイト）");
+    sel.appendChild(o);
+  });
+}
 
 // ---- ローカル（レガシー/オフライン共通）ストレージ ----
 var legacyCardsKey = "toriyama_staff_cards";   // Supabase未設定時の簡易カード台帳
@@ -301,6 +307,8 @@ document.addEventListener("click", function () {
     focusInput();
   }
 });
+
+populateNameSelect();
 
 document.getElementById("mode-tag").textContent = TORIYAMA_DB.isConfigured()
   ? "Supabase連携・オフライン対応"

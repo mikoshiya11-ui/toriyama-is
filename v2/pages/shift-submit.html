@@ -13,14 +13,17 @@
   <h1 class="page-title">希望シフト送信</h1>
   <p class="page-note" style="margin-bottom:16px;">日付をタップして、働ける日と時間を入力してください</p>
 
-  <select class="field" id="staff-name" onchange="onNameChange()" style="width:288px;">
-    <option value="">お名前を選択</option>
-    <option>山田</option>
-    <option>佐藤</option>
-    <option>高橋</option>
-    <option>伊藤</option>
-    <option>店長</option>
-    <option>副店長</option>
+  <select class="field" id="store-select" onchange="onStoreChange()" style="width:336px;">
+    <option value="">店舗を選択</option>
+    <option>新安城店</option>
+    <option>本店</option>
+    <option>駅前店</option>
+    <option>南店</option>
+    <option>西店</option>
+  </select>
+
+  <select class="field" id="staff-name" onchange="onNameChange()" style="width:336px;" disabled>
+    <option value="">先に店舗を選択</option>
   </select>
 
   <div class="shift-cal-nav">
@@ -44,7 +47,7 @@
         <select class="field" id="editor-end" onchange="renderPatternButtons()"></select>
       </div>
     </div>
-    <button class="nav-btn" style="width:100%;" onclick="saveDay()">この日を保存</button>
+    <button class="nav-btn" style="width:100%;" onclick="saveDay()">この日を申請</button>
   </div>
 
   <p class="confirm-msg" id="confirm-msg" style="display:none;"></p>
@@ -124,6 +127,33 @@ function changeMonth(delta) {
   selectedDateKey = null;
   document.getElementById("editor").style.display = "none";
   renderCalendar();
+}
+
+function onStoreChange() {
+  var store = document.getElementById("store-select").value;
+  var nameSel = document.getElementById("staff-name");
+  nameSel.innerHTML = "";
+
+  if (!store) {
+    nameSel.disabled = true;
+    var opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "先に店舗を選択";
+    nameSel.appendChild(opt);
+  } else {
+    nameSel.disabled = false;
+    var placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "お名前を選択";
+    nameSel.appendChild(placeholder);
+    (STORE_STAFF[store] || []).forEach(function (name) {
+      var o = document.createElement("option");
+      o.value = name;
+      o.textContent = name + (isShain(name) ? "（社員）" : "（バイト）");
+      nameSel.appendChild(o);
+    });
+  }
+  onNameChange();
 }
 
 function onNameChange() {
@@ -220,7 +250,7 @@ function saveDay() {
 
   var msg = document.getElementById("confirm-msg");
   msg.style.color = "";
-  msg.textContent = selectedDateKey + " の希望を保存しました";
+  msg.textContent = selectedDateKey + " の希望を申請しました";
   msg.style.display = "block";
   renderCalendar();
 }

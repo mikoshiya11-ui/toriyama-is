@@ -29,12 +29,15 @@
       <button class="nav-btn" style="padding:8px 12px;" onclick="changeMonth(1)">▶</button>
     </div>
 
-    <p class="page-note" style="text-align:left;">バーの中央をドラッグすると時間帯が、両端をつまむと長さが変わります。空欄をクリックすると新規追加できます。</p>
+    <p class="page-note" style="text-align:left;">申請があった日は自動で仮のシフトが置かれます。内容を見ながらドラッグで調整し、最後に確定してください。</p>
+
+    <button class="nav-btn" id="zoom-toggle-btn" style="margin-left:auto;" onclick="toggleZoom()">月間表示</button>
   </div>
 
   <div class="shift-gantt-legend">
-    <span class="lg-item"><span class="lg-swatch request"></span>希望シフト（曜日パターン・点線）</span>
-    <span class="lg-item"><span class="lg-swatch confirmed"></span>確定シフト（日付ごとにドラッグ可）</span>
+    <span class="lg-item"><span class="lg-swatch request"></span>スタッフの申請内容（点線・目安）</span>
+    <span class="lg-item"><span class="lg-swatch preview"></span>仮置き（未確定・ドラッグで調整可）</span>
+    <span class="lg-item"><span class="lg-swatch confirmed"></span>確定済み</span>
   </div>
 
   <div class="shift-gantt-card">
@@ -43,9 +46,17 @@
     </div>
   </div>
 
+  <div id="bar-context-menu" class="bar-context-menu">
+    <button type="button" data-action="preview">仮置きに戻す</button>
+    <button type="button" data-action="delete">削除</button>
+  </div>
+
   <div id="empty-state" class="page-note" style="display:none;margin-bottom:20px;">この店舗のスタッフはまだ登録されていません（テスト版）</div>
 
-  <button class="nav-btn" style="width:240px;margin:0 auto 8px;display:block;" onclick="saveConfirmed()">この月の内容で確定する</button>
+  <div class="nav" style="flex-direction:row;width:240px;gap:8px;margin:0 auto 8px;">
+    <button class="nav-btn" style="flex:1;" id="undo-btn" onclick="undoLast()" disabled>元に戻す</button>
+    <button class="nav-btn" style="flex:1;" onclick="saveConfirmed()">確定する</button>
+  </div>
   <p class="confirm-msg" id="confirm-msg" style="display:none;">確定しました（テスト表示・この端末内のみ保存）</p>
 
   <a class="back" href="../admin.html">管理者ダッシュボードへ戻る</a>
@@ -53,17 +64,22 @@
 
 <script src="../shift-utils.js"></script>
 <script>
-var DAY_W = 140;
-var HOUR_W = DAY_W / 24;
+var DETAIL_DAY_W = 140;
+var MONTH_DAY_W = 34; // 月間表示（全体表示）用の縮小幅
+var zoomedOut = false;
 var MIN_DURATION = 1; // 時間
 
-var STORE_STAFF = {
-  "新安城店": ["山田", "高橋"],
-  "本店": ["佐藤", "店長"],
-  "駅前店": ["伊藤", "副店長"],
-  "南店": [],
-  "西店": []
-};
+function getDayWidth() { return zoomedOut ? MONTH_DAY_W : DETAIL_DAY_W; }
+function getHourWidth() { return getDayWidth() / 24; }
+
+function toggleZoom() {
+  zoomedOut = !zoomedOut;
+  document.getElementById("zoom-toggle-btn").textContent = zoomedOut ? "詳細表示" : "月間表示";
+  document.getElementById("gantt-inner").classList.toggle("zoomed-out", zoomedOut);
+  render();
+}
+
+// STORE_STAFF は shift-utils.js で共通定義（社員が配列の先頭）
 
 var requestsKey = "toriyama_shift_requests_month";
 var confirmedKey = "toriyama_shift_confirmed_month";
@@ -100,32 +116,58 @@ function changeMonth(delta) {
 
 function buildHeader(numDays) {
   var mKey = monthKey(curYear, curMonthIdx);
+  var dayW = getDayWidth();
   var html = '<div class="shift-gantt-header-row"><div class="shift-gantt-side-head">氏名</div>';
   for (var day = 1; day <= numDays; day++) {
     var d = new Date(curYear, curMonthIdx, day);
     var wd = SHIFT_DAYS[jsDayToShiftIndex(d.getDay())];
     var weekend = (wd === "土" || wd === "日") ? " weekend" : "";
-    html += '<div class="shift-gantt-day-cell' + weekend + '" style="width:' + DAY_W + 'px;flex:0 0 ' + DAY_W + 'px;">' + (curMonthIdx + 1) + "/" + day + "(" + wd + ")</div>";
+    html += '<div class="shift-gantt-day-cell' + weekend + '" style="width:' + dayW + 'px;flex:0 0 ' + dayW + 'px;">' + (curMonthIdx + 1) + "/" + day + (zoomedOut ? "" : "(" + wd + ")") + "</div>";
   }
   html += "</div>";
   return html;
 }
 
 function buildBar(name, dKey, start, end, kind) {
-  var left = start * HOUR_W;
-  var width = (end - start) * HOUR_W;
+  var hourW = getHourWidth();
+  var left = start * hourW;
+  var width = (end - start) * hourW;
   if (kind === "request") {
     return '<div class="shift-bar-request" style="left:' + left + 'px;width:' + width + 'px;"></div>';
   }
-  return '<div class="shift-bar" data-name="' + name + '" data-datekey="' + dKey + '" data-start="' + start + '" data-end="' + end + '" style="left:' + left + 'px;width:' + width + 'px;">' +
+  var cls = "shift-bar" + (kind === "preview" ? " preview" : "");
+  var bar = '<div class="' + cls + '" data-name="' + name + '" data-datekey="' + dKey + '" data-start="' + start + '" data-end="' + end + '" style="left:' + left + 'px;width:' + width + 'px;">' +
     '<div class="handle left" data-role="handle-left"></div>' +
-    '<span class="bar-label">' + hourToLabel(start) + '–' + hourToLabel(end) + '</span>' +
-    '<button class="bar-clear" data-role="clear" title="この日は休みにする">✕</button>' +
     '<div class="handle right" data-role="handle-right"></div>' +
     '</div>';
+  // 時間表示はバー幅に縛られず、日付列いっぱいの幅で常に全文字が見えるように別要素で表示する
+  var label = '<div class="shift-bar-time-label">' + hourToLabel(start) + '–' + hourToLabel(end) + '</div>';
+  return bar + label;
+}
+
+// ============================================================
+// 1回だけの元に戻す（直前の1操作＝ドラッグ/リサイズ/追加/休みにする、をまとめて取り消す）
+// ============================================================
+var lastSnapshot = null;
+
+function takeSnapshot() {
+  lastSnapshot = document.getElementById("gantt-inner").innerHTML;
+  document.getElementById("undo-btn").disabled = false;
+}
+
+function clearSnapshot() {
+  lastSnapshot = null;
+  document.getElementById("undo-btn").disabled = true;
+}
+
+function undoLast() {
+  if (lastSnapshot === null) { return; }
+  document.getElementById("gantt-inner").innerHTML = lastSnapshot;
+  clearSnapshot();
 }
 
 function render() {
+  clearSnapshot();
   document.getElementById("month-label").textContent = monthLabel(curYear, curMonthIdx);
 
   var store = document.getElementById("store-select").value;
@@ -144,6 +186,7 @@ function render() {
   }
   emptyState.style.display = "none";
 
+  var dayW = getDayWidth();
   var html = buildHeader(numDays);
   staff.forEach(function (name) {
     var req = requests[name];
@@ -158,7 +201,7 @@ function render() {
       var reqDay = req ? req[dKey] : null;
       var confDay = empRecord[dKey];
 
-      html += '<div class="shift-gantt-track" data-name="' + name + '" data-datekey="' + dKey + '" style="width:' + DAY_W + 'px;flex:0 0 ' + DAY_W + 'px;">';
+      html += '<div class="shift-gantt-track" data-name="' + name + '" data-datekey="' + dKey + '" style="width:' + dayW + 'px;flex:0 0 ' + dayW + 'px;">';
 
       if (reqDay && reqDay.requested) {
         html += buildBar(name, dKey, labelToHour(reqDay.start), labelToHour(reqDay.end), "request");
@@ -171,7 +214,7 @@ function render() {
           html += '<div class="empty-hint" data-role="add" data-name="' + name + '" data-datekey="' + dKey + '">＋</div>';
         }
       } else if (reqDay && reqDay.requested) {
-        html += buildBar(name, dKey, labelToHour(reqDay.start), labelToHour(reqDay.end), "confirmed");
+        html += buildBar(name, dKey, labelToHour(reqDay.start), labelToHour(reqDay.end), "preview");
       } else {
         html += '<div class="empty-hint" data-role="add" data-name="' + name + '" data-datekey="' + dKey + '">＋</div>';
       }
@@ -189,24 +232,15 @@ function render() {
 var drag = null;
 
 document.getElementById("gantt-inner").addEventListener("mousedown", function (e) {
+  if (zoomedOut) { return; } // 月間表示は全体確認用。編集は詳細表示に戻ってから行う
+
   var addBtn = e.target.closest('[data-role="add"]');
   if (addBtn) {
+    takeSnapshot();
     var track = addBtn.closest(".shift-gantt-track");
     var reqBar = track.querySelector(".shift-bar-request");
     track.innerHTML = reqBar ? reqBar.outerHTML : "";
     track.innerHTML += buildBar(addBtn.dataset.name, addBtn.dataset.datekey, 17, 22, "confirmed");
-    return;
-  }
-
-  var clearBtn = e.target.closest('[data-role="clear"]');
-  if (clearBtn) {
-    e.preventDefault();
-    var barEl = clearBtn.closest(".shift-bar");
-    var track = barEl.closest(".shift-gantt-track");
-    barEl.remove();
-    if (!track.querySelector(".empty-hint")) {
-      track.innerHTML += '<div class="empty-hint" data-role="add" data-name="' + track.dataset.name + '" data-datekey="' + track.dataset.datekey + '">＋</div>';
-    }
     return;
   }
 
@@ -215,6 +249,7 @@ document.getElementById("gantt-inner").addEventListener("mousedown", function (e
   var barEl = e.target.closest(".shift-bar");
   if (!barEl) { return; }
   e.preventDefault();
+  takeSnapshot();
 
   drag = {
     barEl: barEl,
@@ -227,7 +262,8 @@ document.getElementById("gantt-inner").addEventListener("mousedown", function (e
 
 document.addEventListener("mousemove", function (e) {
   if (!drag) { return; }
-  var deltaHour = Math.round(((e.clientX - drag.startX) / HOUR_W) * 2) / 2;
+  var hourW = getHourWidth();
+  var deltaHour = Math.round(((e.clientX - drag.startX) / hourW) * 2) / 2;
   var start = drag.origStart;
   var end = drag.origEnd;
 
@@ -241,16 +277,69 @@ document.addEventListener("mousemove", function (e) {
     end = Math.min(24, Math.max(drag.origStart + MIN_DURATION, drag.origEnd + deltaHour));
   }
 
-  drag.barEl.style.left = (start * HOUR_W) + "px";
-  drag.barEl.style.width = ((end - start) * HOUR_W) + "px";
+  drag.barEl.style.left = (start * hourW) + "px";
+  drag.barEl.style.width = ((end - start) * hourW) + "px";
   drag.barEl.dataset.start = start;
   drag.barEl.dataset.end = end;
-  var label = drag.barEl.querySelector(".bar-label");
+  var track = drag.barEl.closest(".shift-gantt-track");
+  var label = track ? track.querySelector(".shift-bar-time-label") : null;
   if (label) { label.textContent = hourToLabel(start) + "–" + hourToLabel(end); }
 });
 
 document.addEventListener("mouseup", function () {
   drag = null;
+});
+
+// ============================================================
+// 右クリックメニュー（誤クリックしやすい✕ボタンの代わり）
+// ============================================================
+var contextTargetBar = null;
+
+function hideContextMenu() {
+  document.getElementById("bar-context-menu").style.display = "none";
+  contextTargetBar = null;
+}
+
+function deleteBar(barEl) {
+  var track = barEl.closest(".shift-gantt-track");
+  var oldLabel = track.querySelector(".shift-bar-time-label");
+  barEl.remove();
+  if (oldLabel) { oldLabel.remove(); }
+  if (!track.querySelector(".empty-hint")) {
+    track.innerHTML += '<div class="empty-hint" data-role="add" data-name="' + track.dataset.name + '" data-datekey="' + track.dataset.datekey + '">＋</div>';
+  }
+}
+
+document.getElementById("gantt-inner").addEventListener("contextmenu", function (e) {
+  var barEl = e.target.closest(".shift-bar");
+  if (!barEl) { return; }
+  e.preventDefault();
+  contextTargetBar = barEl;
+  var menu = document.getElementById("bar-context-menu");
+  menu.style.left = e.clientX + "px";
+  menu.style.top = e.clientY + "px";
+  menu.style.display = "flex";
+});
+
+document.getElementById("bar-context-menu").addEventListener("click", function (e) {
+  var btn = e.target.closest("button[data-action]");
+  if (!btn || !contextTargetBar) { hideContextMenu(); return; }
+  takeSnapshot();
+  if (btn.dataset.action === "preview") {
+    contextTargetBar.classList.add("preview");
+  } else if (btn.dataset.action === "delete") {
+    deleteBar(contextTargetBar);
+  }
+  hideContextMenu();
+});
+
+document.addEventListener("click", function (e) {
+  var menu = document.getElementById("bar-context-menu");
+  if (menu.style.display !== "none" && !menu.contains(e.target)) { hideContextMenu(); }
+});
+
+document.addEventListener("contextmenu", function (e) {
+  if (!e.target.closest(".shift-bar")) { hideContextMenu(); }
 });
 
 function saveConfirmed() {

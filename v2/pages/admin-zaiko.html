@@ -7,146 +7,172 @@
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
-<div class="wrap">
-  <img src="../assets/logo.png" alt="鳥やま" class="logo" style="width:64px;margin-bottom:24px;">
-  <span class="demo-tag" id="data-tag">テスト版・仮データ</span>
+<div class="admin-wrap" style="max-width:480px;">
+  <img src="../assets/logo.png" alt="鳥やま" class="logo" style="width:64px;margin-bottom:16px;">
+  <span class="demo-tag">実棚卸データ・2026年4-5月分</span>
   <h1 class="page-title">在庫管理（管理者）</h1>
-  <p class="page-note" style="margin-bottom:8px;">全店舗の在庫状況（新安城店・仮データ）</p>
+  <p class="page-note" style="margin-bottom:12px;">品目ごとに数量と発注点を設定できます。発注点を設定すると、その数量以下になった時点でスタッフ側の在庫管理にアラームが出ます。</p>
 
-  <div class="step" id="stock-area" style="width:288px;">
+  <select class="field" id="store-select" onchange="render()">
+    <option>新安城店</option>
+    <option>本店</option>
+    <option>駅前店</option>
+    <option>南店</option>
+    <option>西店</option>
+  </select>
+
+  <div class="zaiko-toolrow">
+    <input class="field" id="search-input" type="text" placeholder="品目名で絞り込み" oninput="render()" style="margin-bottom:0;">
+    <label class="zaiko-check-row">
+      <input type="checkbox" id="low-only-check" onchange="render()"> アラーム品目のみ表示
+    </label>
+  </div>
+
+  <p class="zaiko-summary" id="summary-line"></p>
+
+  <div class="step" id="stock-area" style="width:100%;">
     <p class="page-note">読み込み中...</p>
   </div>
 
   <a class="back" href="../admin.html">管理者ダッシュボードへ戻る</a>
 </div>
 
+<script src="../zaiko-utils.js"></script>
 <script>
-/*
-  在庫データの取得元を設定する場所。
-  Googleスプレッドシートを「ファイル→共有→ウェブに公開→CSV」で発行したURLをここに貼ると、
-  そのシートの内容が自動でこのページに反映されます。
-  列の順番：カテゴリ, 品目, 数量, 状態（要発注／やや少／十分）
-  空のままなら、下の仮データがそのまま表示されます。
-*/
-var SHEET_CSV_URL = "";
+function currentStore() {
+  return document.getElementById("store-select").value;
+}
 
-var fallbackData = [
-  { cat: "食材", name: "鶏もも肉", qty: "3.2kg", status: "やや少" },
-  { cat: "食材", name: "鶏むね肉", qty: "8.0kg", status: "十分" },
-  { cat: "食材", name: "手羽先", qty: "1.1kg", status: "要発注" },
-  { cat: "食材", name: "炭", qty: "12kg", status: "十分" },
-  { cat: "ドリンク", name: "生ビール（樽）", qty: "2樽", status: "十分" },
-  { cat: "ドリンク", name: "日本酒", qty: "4本", status: "やや少" },
-  { cat: "消耗品", name: "おしぼり", qty: "60枚", status: "十分" },
-  { cat: "消耗品", name: "割り箸", qty: "15膳", status: "要発注" }
-];
+function allEffectiveItems(store) {
+  var cats = ITEM_MASTER[store] || [];
+  var out = [];
+  cats.forEach(function (cat) {
+    cat.items.forEach(function (masterItem) {
+      out.push(getEffectiveItem(store, masterItem));
+    });
+  });
+  return out;
+}
 
-function parseCSV(text) {
-  var lines = text.trim().split(/\r?\n/);
-  var rows = [];
-  for (var i = 1; i < lines.length; i++) {
-    if (!lines[i]) { continue; }
-    var cells = lines[i].split(",").map(function (c) { return c.replace(/^"|"$/g, "").trim(); });
-    if (cells.length >= 4) {
-      rows.push({ cat: cells[0], name: cells[1], qty: cells[2], status: cells[3] });
-    }
+function updateSummary(store) {
+  var all = allEffectiveItems(store);
+  var lowCount = all.filter(isLowStock).length;
+  var el = document.getElementById("summary-line");
+  if (!all.length) {
+    el.textContent = "この店舗の品目データはまだありません";
+    return;
   }
-  return rows;
+  el.innerHTML = "全 " + all.length + " 品目 / うち発注点以下 <span class=\"low-count\">" + lowCount + "</span> 件";
 }
 
-function colorSelect(el) {
-  var v = el.value;
-  if (v === "要発注") { el.style.color = "#993556"; }
-  else if (v === "やや少") { el.style.color = "#854f0b"; }
-  else { el.style.color = "#3b6d11"; }
+function buildRow(store, masterItem) {
+  var item = getEffectiveItem(store, masterItem);
+
+  var row = document.createElement("div");
+  row.className = "stock-row" + (isLowStock(item) ? " low-stock" : "");
+
+  var top = document.createElement("div");
+  top.className = "stock-top";
+  var nameSpan = document.createElement("span");
+  nameSpan.textContent = item.name;
+  var costSpan = document.createElement("span");
+  costSpan.className = "stock-qty";
+  costSpan.textContent = "単価" + item.unitPrice.toLocaleString() + " / 原価" + Math.round(item.qty * item.unitPrice).toLocaleString();
+  top.appendChild(nameSpan);
+  top.appendChild(costSpan);
+
+  var fields = document.createElement("div");
+  fields.className = "stock-fields";
+
+  var qtyLabel = document.createElement("label");
+  qtyLabel.textContent = "数量";
+  var qtyInput = document.createElement("input");
+  qtyInput.className = "stock-num";
+  qtyInput.type = "number";
+  qtyInput.step = "0.01";
+  qtyInput.value = item.qty;
+  qtyLabel.appendChild(qtyInput);
+
+  var rpLabel = document.createElement("label");
+  rpLabel.textContent = "発注点";
+  var rpInput = document.createElement("input");
+  rpInput.className = "stock-num";
+  rpInput.type = "number";
+  rpInput.step = "0.01";
+  rpInput.value = item.reorderPoint;
+  rpLabel.appendChild(rpInput);
+
+  var lowTag = document.createElement("span");
+  lowTag.className = "low-tag";
+  lowTag.textContent = "要発注";
+  lowTag.style.display = isLowStock(item) ? "inline-block" : "none";
+
+  function commit() {
+    var qty = parseFloat(qtyInput.value);
+    var rp = parseFloat(rpInput.value);
+    if (isNaN(qty)) { qty = 0; }
+    if (isNaN(rp)) { rp = 0; }
+    setItemState(store, masterItem.name, { qty: qty, reorderPoint: rp });
+    var updated = getEffectiveItem(store, masterItem);
+    row.classList.toggle("low-stock", isLowStock(updated));
+    lowTag.style.display = isLowStock(updated) ? "inline-block" : "none";
+    costSpan.textContent = "単価" + updated.unitPrice.toLocaleString() + " / 原価" + Math.round(updated.qty * updated.unitPrice).toLocaleString();
+    updateSummary(store);
+  }
+
+  qtyInput.addEventListener("change", commit);
+  rpInput.addEventListener("change", commit);
+
+  fields.appendChild(qtyLabel);
+  fields.appendChild(rpLabel);
+  fields.appendChild(lowTag);
+
+  row.appendChild(top);
+  row.appendChild(fields);
+  return row;
 }
 
-function orderItem(btn) {
-  var ordered = btn.classList.toggle("ordered");
-  btn.textContent = ordered ? "発注済み" : "発注";
-}
-
-function saveStock() {
-  document.getElementById("confirm-msg").style.display = "block";
-}
-
-function renderStock(items) {
+function render() {
+  var store = currentStore();
+  var query = document.getElementById("search-input").value.trim().toLowerCase();
+  var lowOnly = document.getElementById("low-only-check").checked;
+  var cats = ITEM_MASTER[store] || [];
   var area = document.getElementById("stock-area");
   area.innerHTML = "";
-  var currentCat = null;
 
-  items.forEach(function (item) {
-    if (item.cat !== currentCat) {
-      currentCat = item.cat;
-      var catEl = document.createElement("p");
-      catEl.className = "stock-cat";
-      catEl.textContent = currentCat;
-      area.appendChild(catEl);
-    }
+  updateSummary(store);
 
-    var row = document.createElement("div");
-    row.className = "stock-row";
+  if (!cats.length) {
+    area.innerHTML = '<p class="page-note">この店舗の品目データはまだありません（Excel側にも該当データがないため）</p>';
+    return;
+  }
 
-    var top = document.createElement("div");
-    top.className = "stock-top";
-    top.innerHTML = "<span>" + item.name + "</span><span class=\"stock-qty\">" + item.qty + "</span>";
-
-    var bottom = document.createElement("div");
-    bottom.className = "stock-bottom";
-
-    var select = document.createElement("select");
-    select.className = "stock-select";
-    ["要発注", "やや少", "十分"].forEach(function (opt) {
-      var o = document.createElement("option");
-      o.textContent = opt;
-      if (opt === item.status) { o.selected = true; }
-      select.appendChild(o);
+  var anyShown = false;
+  cats.forEach(function (cat) {
+    var shownItems = cat.items.filter(function (masterItem) {
+      if (query && masterItem.name.toLowerCase().indexOf(query) === -1) { return false; }
+      if (lowOnly && !isLowStock(getEffectiveItem(store, masterItem))) { return false; }
+      return true;
     });
-    select.addEventListener("change", function () { colorSelect(this); });
+    if (!shownItems.length) { return; }
+    anyShown = true;
 
-    var btn = document.createElement("button");
-    btn.className = "order-btn";
-    btn.textContent = "発注";
-    btn.onclick = function () { orderItem(this); };
+    var catEl = document.createElement("p");
+    catEl.className = "stock-cat";
+    catEl.textContent = cat.cat;
+    area.appendChild(catEl);
 
-    bottom.appendChild(select);
-    bottom.appendChild(btn);
-    row.appendChild(top);
-    row.appendChild(bottom);
-    area.appendChild(row);
-
-    colorSelect(select);
+    shownItems.forEach(function (masterItem) {
+      area.appendChild(buildRow(store, masterItem));
+    });
   });
 
-  var saveBtn = document.createElement("button");
-  saveBtn.className = "nav-btn";
-  saveBtn.style.cssText = "width:100%;margin-top:20px;";
-  saveBtn.textContent = "この内容で更新する";
-  saveBtn.onclick = saveStock;
-  area.appendChild(saveBtn);
-
-  var msg = document.createElement("p");
-  msg.className = "confirm-msg";
-  msg.id = "confirm-msg";
-  msg.style.display = "none";
-  msg.textContent = "更新しました（テスト表示）";
-  area.appendChild(msg);
+  if (!anyShown) {
+    area.innerHTML += '<p class="page-note">該当する品目がありません</p>';
+  }
 }
 
-if (SHEET_CSV_URL) {
-  fetch(SHEET_CSV_URL)
-    .then(function (res) { return res.text(); })
-    .then(function (text) {
-      var data = parseCSV(text);
-      document.getElementById("data-tag").textContent = "スプレッドシート連携";
-      renderStock(data.length ? data : fallbackData);
-    })
-    .catch(function () {
-      renderStock(fallbackData);
-    });
-} else {
-  renderStock(fallbackData);
-}
+render();
 </script>
 </body>
 </html>

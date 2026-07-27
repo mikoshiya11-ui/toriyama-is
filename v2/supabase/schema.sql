@@ -258,11 +258,25 @@ insert into employees (company_id, name, role, pin)
 select c.id, e.name, e.role, e.pin
 from companies c
 cross join (values
+  -- 社員
+  ('田中', 'shain', '0000'),
+  ('佐藤', 'shain', '0000'),
+  ('鈴木', 'shain', '0000'),
+  ('伊藤', 'shain', '0000'),
+  ('加藤', 'shain', '0000'),
+  ('中村', 'shain', '0000'),
+  -- バイト
   ('山田', 'baito', '1234'),
-  ('佐藤', 'baito', '1234'),
   ('高橋', 'baito', '1234'),
-  ('伊藤', 'baito', '1234'),
-  ('店長', 'shain', '0000'),
-  ('副店長', 'shain', '0000')
+  ('中島', 'baito', '1234'),
+  ('岡本', 'baito', '1234'),
+  ('松本', 'baito', '1234'),
+  ('木村', 'baito', '1234'),
+  ('斎藤', 'baito', '1234'),
+  ('渡部', 'baito', '1234'),
+  ('渡辺', 'baito', '1234'),
+  ('石井', 'baito', '1234'),
+  ('小林', 'baito', '1234'),
+  ('森田', 'baito', '1234')
 ) as e(name, role, pin)
 where c.code = 'toriyama';

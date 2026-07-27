@@ -4,6 +4,21 @@
 */
 var SHIFT_DAYS = ["月", "火", "水", "木", "金", "土", "日"];
 
+// 店舗ごとのスタッフ一覧（社員を配列の先頭に置くことで、一覧・ガントとも社員が上に並ぶ）
+var STORE_STAFF = {
+  "新安城店": ["田中", "山田", "高橋", "中島"],
+  "本店": ["佐藤", "鈴木", "岡本", "松本"],
+  "駅前店": ["伊藤", "木村", "斎藤", "渡部"],
+  "南店": ["加藤", "渡辺", "石井"],
+  "西店": ["中村", "小林", "森田"]
+};
+
+var SHAIN_NAMES = ["田中", "佐藤", "鈴木", "伊藤", "加藤", "中村"];
+
+function isShain(name) {
+  return SHAIN_NAMES.indexOf(name) !== -1;
+}
+
 // JSのgetDay()（0=日〜6=土）を、SHIFT_DAYS配列のindex（0=月〜6=日）に変換
 function jsDayToShiftIndex(jsDay) {
   return (jsDay + 6) % 7;

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>デモデータ投入（開発用） | 鳥やま 社内システム</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+  <img src="../assets/logo.png" alt="鳥やま" class="logo" style="width:64px;margin-bottom:24px;">
+  <span class="demo-tag">開発用ツール</span>
+  <h1 class="page-title">デモデータ投入</h1>
+  <p class="page-note" style="margin-bottom:20px;">
+    localStorageは端末・ブラウザごとに独立しているため、このボタンは「今この画面を開いているブラウザ」にだけデータを投入します。
+    スマホで確認したい場合は、スマホ側でこのページを開いてボタンを押してください。
+  </p>
+
+  <div class="step" style="width:320px;">
+    <p class="page-note" style="text-align:left;margin-bottom:12px;">新安城店 4名（田中・山田・高橋・中島）の2026年8月の希望シフトを投入します（申請データのみ。確定は別途admin-shift.htmlで行います）。</p>
+    <button class="nav-btn" style="width:100%;" onclick="seedData()">新安城店・8月の希望シフトを投入する</button>
+    <p class="confirm-msg" id="confirm-msg" style="display:none;">投入しました。下のリンクから確認できます。</p>
+  </div>
+
+  <div class="nav" style="width:320px;margin-top:24px;">
+    <a class="nav-btn" href="admin-shift.html">シフト確定（管理者）で見る</a>
+    <a class="nav-btn" href="shift-confirm.html">確定シフト確認（スタッフ）で見る</a>
+    <a class="nav-btn" href="shift-submit.html">希望シフト送信（スタッフ）で見る</a>
+  </div>
+
+  <a class="back" href="../admin.html">管理者ダッシュボードへ戻る</a>
+</div>
+
+<script>
+var requestsKey = "toriyama_shift_requests_month";
+
+var SEED_DATA = {
+  "田中": {
+    "2026-08-03": { requested: true, start: "13:00", end: "24:00" },
+    "2026-08-04": { requested: true, start: "13:00", end: "24:00" },
+    "2026-08-05": { requested: true, start: "13:00", end: "24:00" },
+    "2026-08-06": { requested: true, start: "13:00", end: "24:00" },
+    "2026-08-07": { requested: true, start: "13:00", end: "24:00" },
+    "2026-08-10": { requested: true, start: "13:00", end: "24:00" },
+    "2026-08-11": { requested: true, start: "13:00", end: "24:00" },
+    "2026-08-12": { requested: true, start: "13:00", end: "24:00" },
+    "2026-08-13": { requested: true, start: "13:00", end: "24:00" },
+    "2026-08-14": { requested: true, start: "13:00", end: "24:00" },
+    "2026-08-17": { requested: true, start: "13:00", end: "24:00" },
+    "2026-08-18": { requested: true, start: "13:00", end: "24:00" },
+    "2026-08-19": { requested: true, start: "13:00", end: "24:00" },
+    "2026-08-20": { requested: true, start: "13:00", end: "24:00" },
+    "2026-08-21": { requested: true, start: "13:00", end: "24:00" },
+    "2026-08-24": { requested: true, start: "13:00", end: "24:00" },
+    "2026-08-25": { requested: true, start: "13:00", end: "24:00" },
+    "2026-08-26": { requested: true, start: "13:00", end: "24:00" },
+    "2026-08-27": { requested: true, start: "13:00", end: "24:00" },
+    "2026-08-28": { requested: true, start: "13:00", end: "24:00" },
+    "2026-08-31": { requested: true, start: "13:00", end: "24:00" }
+  },
+  "山田": {
+    "2026-08-03": { requested: true, start: "17:00", end: "22:00" },
+    "2026-08-05": { requested: true, start: "17:00", end: "22:00" },
+    "2026-08-07": { requested: true, start: "17:00", end: "22:00" },
+    "2026-08-12": { requested: true, start: "17:00", end: "22:00" },
+    "2026-08-15": { requested: true, start: "17:00", end: "23:00" },
+    "2026-08-17": { requested: true, start: "17:00", end: "22:00" },
+    "2026-08-21": { requested: true, start: "17:00", end: "22:00" },
+    "2026-08-26": { requested: true, start: "17:00", end: "22:00" }
+  },
+  "高橋": {
+    "2026-08-04": { requested: true, start: "15:00", end: "23:00" },
+    "2026-08-06": { requested: true, start: "15:00", end: "23:00" },
+    "2026-08-08": { requested: true, start: "15:00", end: "23:00" },
+    "2026-08-18": { requested: true, start: "15:00", end: "23:00" },
+    "2026-08-20": { requested: true, start: "15:00", end: "23:00" },
+    "2026-08-22": { requested: true, start: "15:00", end: "23:00" },
+    "2026-08-25": { requested: true, start: "15:00", end: "23:00" },
+    "2026-08-29": { requested: true, start: "15:00", end: "23:00" }
+  },
+  "中島": {
+    "2026-08-02": { requested: true, start: "17:00", end: "23:00" },
+    "2026-08-12": { requested: true, start: "17:00", end: "23:00" },
+    "2026-08-14": { requested: true, start: "17:00", end: "23:00" },
+    "2026-08-16": { requested: true, start: "17:00", end: "23:00" },
+    "2026-08-19": { requested: true, start: "17:00", end: "23:00" },
+    "2026-08-28": { requested: true, start: "17:00", end: "23:00" },
+    "2026-08-29": { requested: true, start: "13:00", end: "24:00" },
+    "2026-08-30": { requested: true, start: "17:00", end: "23:00" }
+  }
+};
+
+function seedData() {
+  var existing = {};
+  try { existing = JSON.parse(localStorage.getItem(requestsKey) || "{}"); }
+  catch (e) { existing = {}; }
+
+  for (var name in SEED_DATA) {
+    if (!existing[name]) { existing[name] = {}; }
+    for (var dateKey in SEED_DATA[name]) {
+      existing[name][dateKey] = SEED_DATA[name][dateKey];
+    }
+  }
+
+  localStorage.setItem(requestsKey, JSON.stringify(existing));
+  document.getElementById("confirm-msg").style.display = "block";
+}
+</script>
+</body>
+</html>

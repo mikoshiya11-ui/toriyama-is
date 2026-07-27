@@ -32,9 +32,17 @@
     <select id="baito-name" class="field">
       <option value="">お名前を選択</option>
       <option>山田</option>
-      <option>佐藤</option>
       <option>高橋</option>
-      <option>伊藤</option>
+      <option>中島</option>
+      <option>岡本</option>
+      <option>松本</option>
+      <option>木村</option>
+      <option>斎藤</option>
+      <option>渡部</option>
+      <option>渡辺</option>
+      <option>石井</option>
+      <option>小林</option>
+      <option>森田</option>
     </select>
     <input id="baito-pin" class="field" type="password" inputmode="numeric" maxlength="4" placeholder="PIN（4桁）">
     <p id="baito-error" class="error-msg" style="display:none;">名前とPINを確認してください（テスト版のPINは 1234）</p>
@@ -44,7 +52,7 @@
   <div id="step-shain" class="step" style="display:none;">
     <input id="shain-id" class="field" type="text" placeholder="社員ID">
     <input id="shain-pin" class="field" type="password" inputmode="numeric" maxlength="4" placeholder="PIN（4桁）">
-    <p id="shain-error" class="error-msg" style="display:none;">IDとPINを確認してください（テスト版は 0001〜0002 / PIN 0000）</p>
+    <p id="shain-error" class="error-msg" style="display:none;">IDとPINを確認してください（テスト版は 0001〜0006 / PIN 0000）</p>
     <button class="nav-btn" style="width:100%;" onclick="loginShain()">確認する</button>
   </div>
 
@@ -108,8 +116,19 @@
 </div>
 
 <script>
-var staffBaito = { "山田": "1234", "佐藤": "1234", "高橋": "1234", "伊藤": "1234" };
-var staffShain = { "0001": { pin: "0000", name: "店長" }, "0002": { pin: "0000", name: "副店長" } };
+var staffBaito = {
+  "山田": "1234", "高橋": "1234", "中島": "1234", "岡本": "1234",
+  "松本": "1234", "木村": "1234", "斎藤": "1234", "渡部": "1234",
+  "渡辺": "1234", "石井": "1234", "小林": "1234", "森田": "1234"
+};
+var staffShain = {
+  "0001": { pin: "0000", name: "田中" },
+  "0002": { pin: "0000", name: "佐藤" },
+  "0003": { pin: "0000", name: "鈴木" },
+  "0004": { pin: "0000", name: "伊藤" },
+  "0005": { pin: "0000", name: "加藤" },
+  "0006": { pin: "0000", name: "中村" }
+};
 
 function goTo(step) {
   var steps = ["top", "role", "baito", "shain", "result"];
