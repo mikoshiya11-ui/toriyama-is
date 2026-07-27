@@ -1137,14 +1137,14 @@ button {
 }
 
 .shift-cal-pattern-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 6px;
-  flex-wrap: wrap;
   margin-bottom: 14px;
 }
 
 .shift-cal-pattern-btn {
-  flex: 1 1 auto;
+  width: 100%;
   padding: 8px 6px;
   font-size: 11px;
   border: 1px solid #111111;
@@ -1170,4 +1170,8 @@ button {
 .shift-cal-editor .day-row {
   border-bottom: none;
   padding: 0 0 12px;
+}
+
+.shift-cal-editor .day-row label {
+  white-space: nowrap;
 }
