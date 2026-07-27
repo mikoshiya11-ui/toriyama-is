@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>希望シフト送信 | 鳥やま 社内システム</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+  <img src="../assets/logo.png" alt="鳥やま" class="logo" style="width:64px;margin-bottom:24px;">
+  <span class="demo-tag">テスト版・仮データ</span>
+  <h1 class="page-title">希望シフト送信</h1>
+  <p class="page-note" style="margin-bottom:16px;">日付をタップして、働ける日と時間を入力してください</p>
+
+  <select class="field" id="staff-name" onchange="onNameChange()" style="width:288px;">
+    <option value="">お名前を選択</option>
+    <option>山田</option>
+    <option>佐藤</option>
+    <option>高橋</option>
+    <option>伊藤</option>
+    <option>店長</option>
+    <option>副店長</option>
+  </select>
+
+  <div class="shift-cal-nav">
+    <button class="nav-btn" style="padding:8px 12px;" onclick="changeMonth(-1)">◀</button>
+    <span id="month-label" style="font-size:13px;letter-spacing:1px;"></span>
+    <button class="nav-btn" style="padding:8px 12px;" onclick="changeMonth(1)">▶</button>
+  </div>
+
+  <div class="shift-cal-grid" id="cal-grid"></div>
+
+  <div class="shift-cal-editor" id="editor" style="display:none;">
+    <p class="shift-cal-editor-title" id="editor-title"></p>
+    <div class="day-row">
+      <label><input type="checkbox" id="editor-requested" onchange="toggleEditorFields()"> 出勤希望あり</label>
+    </div>
+    <div id="editor-time-row" class="day-row">
+      <input class="field" type="time" id="editor-start" value="17:00">
+      <span>〜</span>
+      <input class="field" type="time" id="editor-end" value="22:00">
+    </div>
+    <button class="nav-btn" style="width:100%;" onclick="saveDay()">この日を保存</button>
+  </div>
+
+  <p class="confirm-msg" id="confirm-msg" style="display:none;"></p>
+
+  <a class="back" href="kintai-shift.html">シフト管理へ戻る</a>
+</div>
+
+<script src="../shift-utils.js"></script>
+<script>
+var requestsKey = "toriyama_shift_requests_month";
+
+var today = new Date();
+var base = new Date(today.getFullYear(), today.getMonth() + 1, 1); // 来月分をデフォルトで表示
+var curYear = base.getFullYear();
+var curMonthIdx = base.getMonth();
+var selectedDateKey = null;
+
+function getRequests() {
+  try { return JSON.parse(localStorage.getItem(requestsKey) || "{}"); }
+  catch (e) { return {}; }
+}
+function saveRequests(r) {
+  localStorage.setItem(requestsKey, JSON.stringify(r));
+}
+
+function currentName() {
+  return document.getElementById("staff-name").value;
+}
+
+function changeMonth(delta) {
+  var d = new Date(curYear, curMonthIdx + delta, 1);
+  curYear = d.getFullYear();
+  curMonthIdx = d.getMonth();
+  selectedDateKey = null;
+  document.getElementById("editor").style.display = "none";
+  renderCalendar();
+}
+
+function onNameChange() {
+  selectedDateKey = null;
+  document.getElementById("editor").style.display = "none";
+  renderCalendar();
+}
+
+function renderCalendar() {
+  document.getElementById("month-label").textContent = monthLabel(curYear, curMonthIdx);
+  var grid = document.getElementById("cal-grid");
+  grid.innerHTML = "";
+  SHIFT_DAYS.forEach(function (d) {
+    var h = document.createElement("div");
+    h.className = "shift-cal-headcell";
+    h.textContent = d;
+    grid.appendChild(h);
+  });
+
+  var name = currentName();
+  var requests = getRequests();
+  var record = (name && requests[name]) ? requests[name] : {};
+  var numDays = daysInMonth(curYear, curMonthIdx);
+  var firstDay = new Date(curYear, curMonthIdx, 1);
+  var leadingBlanks = jsDayToShiftIndex(firstDay.getDay());
+
+  for (var i = 0; i < leadingBlanks; i++) {
+    var blank = document.createElement("div");
+    blank.className = "shift-cal-cell blank";
+    grid.appendChild(blank);
+  }
+
+  for (var day = 1; day <= numDays; day++) {
+    var dKey = dateKey(curYear, curMonthIdx, day);
+    var entry = record[dKey];
+    var cell = document.createElement("div");
+    cell.className = "shift-cal-cell" + (entry && entry.requested ? " has-request" : "") + (dKey === selectedDateKey ? " selected" : "");
+    cell.dataset.datekey = dKey;
+    cell.innerHTML = day + (entry && entry.requested ? '<span class="cal-time">' + entry.start + '</span>' : "");
+    cell.onclick = function () { openEditor(this.dataset.datekey); };
+    grid.appendChild(cell);
+  }
+}
+
+function openEditor(dKey) {
+  var name = currentName();
+  if (!name) {
+    document.getElementById("confirm-msg").style.color = "#993556";
+    document.getElementById("confirm-msg").textContent = "先にお名前を選択してください";
+    document.getElementById("confirm-msg").style.display = "block";
+    return;
+  }
+  document.getElementById("confirm-msg").style.display = "none";
+  selectedDateKey = dKey;
+  renderCalendar();
+
+  var requests = getRequests();
+  var entry = (requests[name] && requests[name][dKey]) || { requested: false, start: "17:00", end: "22:00" };
+
+  var dayNum = Number(dKey.split("-")[2]);
+  var d = new Date(curYear, curMonthIdx, dayNum);
+  document.getElementById("editor-title").textContent = (curMonthIdx + 1) + "月" + dayNum + "日（" + SHIFT_DAYS[jsDayToShiftIndex(d.getDay())] + "）";
+  document.getElementById("editor-requested").checked = !!entry.requested;
+  document.getElementById("editor-start").value = entry.start || "17:00";
+  document.getElementById("editor-end").value = entry.end || "22:00";
+  toggleEditorFields();
+  document.getElementById("editor").style.display = "block";
+}
+
+function toggleEditorFields() {
+  var on = document.getElementById("editor-requested").checked;
+  document.getElementById("editor-time-row").style.display = on ? "flex" : "none";
+}
+
+function saveDay() {
+  var name = currentName();
+  if (!name || !selectedDateKey) { return; }
+
+  var requests = getRequests();
+  if (!requests[name]) { requests[name] = {}; }
+
+  var requested = document.getElementById("editor-requested").checked;
+  requests[name][selectedDateKey] = {
+    requested: requested,
+    start: requested ? document.getElementById("editor-start").value : "",
+    end: requested ? document.getElementById("editor-end").value : ""
+  };
+  saveRequests(requests);
+
+  var msg = document.getElementById("confirm-msg");
+  msg.style.color = "";
+  msg.textContent = selectedDateKey + " の希望を保存しました";
+  msg.style.display = "block";
+  renderCalendar();
+}
+
+renderCalendar();
+</script>
+</body>
+</html>

@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>シフト確定（管理者） | 鳥やま 社内システム</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="admin-wrap" style="max-width:1100px;">
+  <div class="admin-hero" style="padding-bottom:24px;">
+    <img src="../assets/logo.png" alt="鳥やま" class="admin-hero-logo" style="width:64px;">
+    <p class="admin-hero-title" style="font-size:15px;letter-spacing:2px;">シフト確定（月表示）</p>
+    <span class="demo-tag" style="margin-top:12px;">テスト版・仮データ</span>
+  </div>
+
+  <div class="shift-gantt-toolrow">
+    <select class="shift-store-select" id="store-select" onchange="render()">
+      <option>新安城店</option>
+      <option>本店</option>
+      <option>駅前店</option>
+      <option>南店</option>
+      <option>西店</option>
+    </select>
+
+    <div class="nav" style="flex-direction:row;width:auto;gap:6px;">
+      <button class="nav-btn" style="padding:8px 12px;" onclick="changeMonth(-1)">◀</button>
+      <span class="nav-btn" id="month-label" style="cursor:default;min-width:110px;"></span>
+      <button class="nav-btn" style="padding:8px 12px;" onclick="changeMonth(1)">▶</button>
+    </div>
+
+    <p class="page-note" style="text-align:left;">バーの中央をドラッグすると時間帯が、両端をつまむと長さが変わります。空欄をクリックすると新規追加できます。</p>
+  </div>
+
+  <div class="shift-gantt-legend">
+    <span class="lg-item"><span class="lg-swatch request"></span>希望シフト（曜日パターン・点線）</span>
+    <span class="lg-item"><span class="lg-swatch confirmed"></span>確定シフト（日付ごとにドラッグ可）</span>
+  </div>
+
+  <div class="shift-gantt-card">
+    <div class="shift-gantt-scroll">
+      <div class="shift-gantt-inner" id="gantt-inner"></div>
+    </div>
+  </div>
+
+  <div id="empty-state" class="page-note" style="display:none;margin-bottom:20px;">この店舗のスタッフはまだ登録されていません（テスト版）</div>
+
+  <button class="nav-btn" style="width:240px;margin:0 auto 8px;display:block;" onclick="saveConfirmed()">この月の内容で確定する</button>
+  <p class="confirm-msg" id="confirm-msg" style="display:none;">確定しました（テスト表示・この端末内のみ保存）</p>
+
+  <a class="back" href="../admin.html">管理者ダッシュボードへ戻る</a>
+</div>
+
+<script src="../shift-utils.js"></script>
+<script>
+var DAY_W = 140;
+var HOUR_W = DAY_W / 24;
+var MIN_DURATION = 1; // 時間
+
+var STORE_STAFF = {
+  "新安城店": ["山田", "高橋"],
+  "本店": ["佐藤", "店長"],
+  "駅前店": ["伊藤", "副店長"],
+  "南店": [],
+  "西店": []
+};
+
+var requestsKey = "toriyama_shift_requests_month";
+var confirmedKey = "toriyama_shift_confirmed_month";
+
+var today = new Date();
+var base = new Date(today.getFullYear(), today.getMonth() + 1, 1); // デフォルトは来月
+var curYear = base.getFullYear();
+var curMonthIdx = base.getMonth();
+
+function getRequests() {
+  try { return JSON.parse(localStorage.getItem(requestsKey) || "{}"); }
+  catch (e) { return {}; }
+}
+function getConfirmed() {
+  try { return JSON.parse(localStorage.getItem(confirmedKey) || "{}"); }
+  catch (e) { return {}; }
+}
+function saveConfirmedData(c) {
+  localStorage.setItem(confirmedKey, JSON.stringify(c));
+}
+
+function employeeMonthHasData(confirmed, name, mKey) {
+  var record = confirmed[name];
+  if (!record) { return false; }
+  return Object.keys(record).some(function (k) { return k.indexOf(mKey) === 0; });
+}
+
+function changeMonth(delta) {
+  var d = new Date(curYear, curMonthIdx + delta, 1);
+  curYear = d.getFullYear();
+  curMonthIdx = d.getMonth();
+  render();
+}
+
+function buildHeader(numDays) {
+  var mKey = monthKey(curYear, curMonthIdx);
+  var html = '<div class="shift-gantt-header-row"><div class="shift-gantt-side-head">氏名</div>';
+  for (var day = 1; day <= numDays; day++) {
+    var d = new Date(curYear, curMonthIdx, day);
+    var wd = SHIFT_DAYS[jsDayToShiftIndex(d.getDay())];
+    var weekend = (wd === "土" || wd === "日") ? " weekend" : "";
+    html += '<div class="shift-gantt-day-cell' + weekend + '" style="width:' + DAY_W + 'px;flex:0 0 ' + DAY_W + 'px;">' + (curMonthIdx + 1) + "/" + day + "(" + wd + ")</div>";
+  }
+  html += "</div>";
+  return html;
+}
+
+function buildBar(name, dKey, start, end, kind) {
+  var left = start * HOUR_W;
+  var width = (end - start) * HOUR_W;
+  if (kind === "request") {
+    return '<div class="shift-bar-request" style="left:' + left + 'px;width:' + width + 'px;"></div>';
+  }
+  return '<div class="shift-bar" data-name="' + name + '" data-datekey="' + dKey + '" data-start="' + start + '" data-end="' + end + '" style="left:' + left + 'px;width:' + width + 'px;">' +
+    '<div class="handle left" data-role="handle-left"></div>' +
+    '<span class="bar-label">' + hourToLabel(start) + '–' + hourToLabel(end) + '</span>' +
+    '<button class="bar-clear" data-role="clear" title="この日は休みにする">✕</button>' +
+    '<div class="handle right" data-role="handle-right"></div>' +
+    '</div>';
+}
+
+function render() {
+  document.getElementById("month-label").textContent = monthLabel(curYear, curMonthIdx);
+
+  var store = document.getElementById("store-select").value;
+  var staff = STORE_STAFF[store] || [];
+  var requests = getRequests();
+  var confirmed = getConfirmed();
+  var inner = document.getElementById("gantt-inner");
+  var emptyState = document.getElementById("empty-state");
+  var numDays = daysInMonth(curYear, curMonthIdx);
+  var mKey = monthKey(curYear, curMonthIdx);
+
+  if (!staff.length) {
+    inner.innerHTML = "";
+    emptyState.style.display = "block";
+    return;
+  }
+  emptyState.style.display = "none";
+
+  var html = buildHeader(numDays);
+  staff.forEach(function (name) {
+    var req = requests[name];
+    var monthAlreadyConfirmed = employeeMonthHasData(confirmed, name, mKey);
+    var empRecord = confirmed[name] || {};
+
+    html += '<div class="shift-gantt-row">';
+    html += '<div class="shift-gantt-side-cell">' + name + '</div>';
+
+    for (var day = 1; day <= numDays; day++) {
+      var dKey = dateKey(curYear, curMonthIdx, day);
+      var reqDay = req ? req[dKey] : null;
+      var confDay = empRecord[dKey];
+
+      html += '<div class="shift-gantt-track" data-name="' + name + '" data-datekey="' + dKey + '" style="width:' + DAY_W + 'px;flex:0 0 ' + DAY_W + 'px;">';
+
+      if (reqDay && reqDay.requested) {
+        html += buildBar(name, dKey, labelToHour(reqDay.start), labelToHour(reqDay.end), "request");
+      }
+
+      if (monthAlreadyConfirmed) {
+        if (confDay && !confDay.off) {
+          html += buildBar(name, dKey, labelToHour(confDay.start), labelToHour(confDay.end), "confirmed");
+        } else {
+          html += '<div class="empty-hint" data-role="add" data-name="' + name + '" data-datekey="' + dKey + '">＋</div>';
+        }
+      } else if (reqDay && reqDay.requested) {
+        html += buildBar(name, dKey, labelToHour(reqDay.start), labelToHour(reqDay.end), "confirmed");
+      } else {
+        html += '<div class="empty-hint" data-role="add" data-name="' + name + '" data-datekey="' + dKey + '">＋</div>';
+      }
+      html += "</div>";
+    }
+    html += "</div>";
+  });
+
+  inner.innerHTML = html;
+}
+
+// ============================================================
+// ドラッグ・リサイズ（SAKAE SEIKI-iS 生産管理-iSのガントと同じ操作感）
+// ============================================================
+var drag = null;
+
+document.getElementById("gantt-inner").addEventListener("mousedown", function (e) {
+  var addBtn = e.target.closest('[data-role="add"]');
+  if (addBtn) {
+    var track = addBtn.closest(".shift-gantt-track");
+    var reqBar = track.querySelector(".shift-bar-request");
+    track.innerHTML = reqBar ? reqBar.outerHTML : "";
+    track.innerHTML += buildBar(addBtn.dataset.name, addBtn.dataset.datekey, 17, 22, "confirmed");
+    return;
+  }
+
+  var clearBtn = e.target.closest('[data-role="clear"]');
+  if (clearBtn) {
+    e.preventDefault();
+    var barEl = clearBtn.closest(".shift-bar");
+    var track = barEl.closest(".shift-gantt-track");
+    barEl.remove();
+    if (!track.querySelector(".empty-hint")) {
+      track.innerHTML += '<div class="empty-hint" data-role="add" data-name="' + track.dataset.name + '" data-datekey="' + track.dataset.datekey + '">＋</div>';
+    }
+    return;
+  }
+
+  var handleLeft = e.target.closest('[data-role="handle-left"]');
+  var handleRight = e.target.closest('[data-role="handle-right"]');
+  var barEl = e.target.closest(".shift-bar");
+  if (!barEl) { return; }
+  e.preventDefault();
+
+  drag = {
+    barEl: barEl,
+    mode: handleLeft ? "resize-left" : (handleRight ? "resize-right" : "move"),
+    startX: e.clientX,
+    origStart: Number(barEl.dataset.start),
+    origEnd: Number(barEl.dataset.end)
+  };
+});
+
+document.addEventListener("mousemove", function (e) {
+  if (!drag) { return; }
+  var deltaHour = Math.round(((e.clientX - drag.startX) / HOUR_W) * 2) / 2;
+  var start = drag.origStart;
+  var end = drag.origEnd;
+
+  if (drag.mode === "move") {
+    var duration = drag.origEnd - drag.origStart;
+    start = Math.max(0, Math.min(24 - duration, drag.origStart + deltaHour));
+    end = start + duration;
+  } else if (drag.mode === "resize-left") {
+    start = Math.max(0, Math.min(drag.origEnd - MIN_DURATION, drag.origStart + deltaHour));
+  } else if (drag.mode === "resize-right") {
+    end = Math.min(24, Math.max(drag.origStart + MIN_DURATION, drag.origEnd + deltaHour));
+  }
+
+  drag.barEl.style.left = (start * HOUR_W) + "px";
+  drag.barEl.style.width = ((end - start) * HOUR_W) + "px";
+  drag.barEl.dataset.start = start;
+  drag.barEl.dataset.end = end;
+  var label = drag.barEl.querySelector(".bar-label");
+  if (label) { label.textContent = hourToLabel(start) + "–" + hourToLabel(end); }
+});
+
+document.addEventListener("mouseup", function () {
+  drag = null;
+});
+
+function saveConfirmed() {
+  var confirmed = getConfirmed();
+  var store = document.getElementById("store-select").value;
+  var staff = STORE_STAFF[store] || [];
+  var numDays = daysInMonth(curYear, curMonthIdx);
+
+  staff.forEach(function (name) {
+    if (!confirmed[name]) { confirmed[name] = {}; }
+    for (var day = 1; day <= numDays; day++) {
+      var dKey = dateKey(curYear, curMonthIdx, day);
+      var track = document.querySelector('.shift-gantt-track[data-name="' + name + '"][data-datekey="' + dKey + '"]');
+      var bar = track ? track.querySelector(".shift-bar") : null;
+      if (bar) {
+        confirmed[name][dKey] = { off: false, start: hourToLabel(Number(bar.dataset.start)), end: hourToLabel(Number(bar.dataset.end)) };
+      } else {
+        confirmed[name][dKey] = { off: true, start: "", end: "" };
+      }
+    }
+  });
+
+  saveConfirmedData(confirmed);
+  document.getElementById("confirm-msg").style.display = "block";
+  render();
+}
+
+render();
+</script>
+</body>
+</html>

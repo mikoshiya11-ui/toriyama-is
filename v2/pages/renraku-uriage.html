@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>売上報告 | 鳥やま 社内システム</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+  <img src="../assets/logo.png" alt="鳥やま" class="logo" style="width:64px;margin-bottom:24px;">
+  <span class="demo-tag">テスト版・仮データ</span>
+  <h1 class="page-title">売上報告</h1>
+  <p class="page-note" style="margin-bottom:16px;">閉店後、本日の実績を入力してください</p>
+
+  <div class="step" style="width:288px;">
+    <select class="field" id="store">
+      <option>新安城店</option>
+      <option>本店</option>
+      <option>駅前店</option>
+    </select>
+    <input class="field" id="date" type="date">
+    <div class="report-row">
+      <input class="field" id="sales" type="number" placeholder="売上金額（円）">
+      <input class="field" id="guests" type="number" placeholder="客数（人）">
+    </div>
+    <textarea class="field" id="note" placeholder="メモ（任意）" style="height:60px;"></textarea>
+    <button class="nav-btn" style="width:100%;" onclick="submitReport()">この内容で報告する</button>
+    <p class="confirm-msg" id="confirm-msg" style="display:none;">報告しました（テスト表示）</p>
+  </div>
+
+  <p class="page-note" style="margin:28px 0 8px;text-align:left;">直近の報告（仮データ）</p>
+  <table class="result-table" style="width:288px;">
+    <tr><th>日付</th><th>店舗</th><th>売上</th><th>客数</th></tr>
+    <tr><td>7/23</td><td>新安城</td><td>¥182,400</td><td>64</td></tr>
+    <tr><td>7/24</td><td>本店</td><td>¥215,900</td><td>78</td></tr>
+    <tr><td>7/25</td><td>駅前</td><td>¥163,200</td><td>55</td></tr>
+  </table>
+
+  <a class="back" href="staff.html">スタッフメニューへ戻る</a>
+</div>
+
+<script>
+var dateEl = document.getElementById("date");
+var today = new Date().toISOString().split("T")[0];
+dateEl.value = today;
+
+function submitReport() {
+  document.getElementById("confirm-msg").style.display = "block";
+}
+</script>
+</body>
+</html>

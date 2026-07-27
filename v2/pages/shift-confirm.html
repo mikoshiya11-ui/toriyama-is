@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>確定シフト確認 | 鳥やま 社内システム</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+  <img src="../assets/logo.png" alt="鳥やま" class="logo" style="width:64px;margin-bottom:24px;">
+  <span class="demo-tag">テスト版・仮データ</span>
+  <h1 class="page-title">確定シフト確認</h1>
+
+  <select class="field" id="staff-name" onchange="render()" style="margin-bottom:12px;">
+    <option>山田</option>
+    <option>佐藤</option>
+    <option>高橋</option>
+    <option>伊藤</option>
+    <option>店長</option>
+    <option>副店長</option>
+  </select>
+
+  <div class="nav" style="flex-direction:row;width:288px;gap:6px;margin-bottom:16px;">
+    <button class="nav-btn" style="padding:8px 12px;" onclick="changeMonth(-1)">◀</button>
+    <span class="nav-btn" id="month-label" style="cursor:default;flex:1;"></span>
+    <button class="nav-btn" style="padding:8px 12px;" onclick="changeMonth(1)">▶</button>
+  </div>
+
+  <p class="result-name" id="result-title"></p>
+
+  <div class="table-scroll">
+    <table class="result-table" style="width:288px;">
+      <tr><th>日付</th><th>出勤</th><th>退勤</th></tr>
+      <tbody id="result-body"></tbody>
+    </table>
+  </div>
+
+  <a class="back" href="kintai-shift.html">シフト管理へ戻る</a>
+</div>
+
+<script src="../shift-utils.js"></script>
+<script>
+var confirmedKey = "toriyama_shift_confirmed_month";
+
+var today = new Date();
+var base = new Date(today.getFullYear(), today.getMonth() + 1, 1); // admin-shift.htmlのデフォルトと合わせて来月
+var curYear = base.getFullYear();
+var curMonthIdx = base.getMonth();
+
+// 管理者側でまだ何も確定していない場合のフォールバック仮データ（山田さん・曜日パターン）
+var fallbackPattern = {
+  "山田": { "月": { start: "17:00", end: "22:00" }, "水": { start: "17:00", end: "22:00" }, "金": { start: "17:00", end: "23:00" }, "土": { start: "16:00", end: "23:00" } }
+};
+
+function getConfirmed() {
+  try { return JSON.parse(localStorage.getItem(confirmedKey) || "{}"); }
+  catch (e) { return {}; }
+}
+
+function changeMonth(delta) {
+  var d = new Date(curYear, curMonthIdx + delta, 1);
+  curYear = d.getFullYear();
+  curMonthIdx = d.getMonth();
+  render();
+}
+
+function render() {
+  document.getElementById("month-label").textContent = monthLabel(curYear, curMonthIdx);
+  var name = document.getElementById("staff-name").value;
+  var confirmed = getConfirmed();
+  var mKey = monthKey(curYear, curMonthIdx);
+  var record = confirmed[name] || {};
+  var hasMonthData = Object.keys(record).some(function (k) { return k.indexOf(mKey) === 0; });
+  var numDays = daysInMonth(curYear, curMonthIdx);
+
+  var title = document.getElementById("result-title");
+  var body = document.getElementById("result-body");
+  body.innerHTML = "";
+
+  if (!hasMonthData && !fallbackPattern[name]) {
+    title.textContent = name + "さんの" + monthLabel(curYear, curMonthIdx) + "の確定シフトはまだありません";
+    return;
+  }
+
+  title.textContent = name + "さんの" + monthLabel(curYear, curMonthIdx) + "のシフト" + (hasMonthData ? "" : "（仮データ）");
+
+  for (var day = 1; day <= numDays; day++) {
+    var d = new Date(curYear, curMonthIdx, day);
+    var wd = SHIFT_DAYS[jsDayToShiftIndex(d.getDay())];
+    var dKey = dateKey(curYear, curMonthIdx, day);
+    var start = "", end = "", off = true;
+
+    if (hasMonthData) {
+      var entry = record[dKey];
+      if (entry && !entry.off) { start = entry.start; end = entry.end; off = false; }
+    } else if (fallbackPattern[name] && fallbackPattern[name][wd]) {
+      start = fallbackPattern[name][wd].start;
+      end = fallbackPattern[name][wd].end;
+      off = false;
+    }
+
+    var tr = document.createElement("tr");
+    tr.innerHTML = "<td>" + (curMonthIdx + 1) + "/" + day + "(" + wd + ")</td><td>" + (off ? "―" : start) + "</td><td>" + (off ? "―" : end) + "</td>";
+    body.appendChild(tr);
+  }
+}
+
+render();
+</script>
+</body>
+</html>

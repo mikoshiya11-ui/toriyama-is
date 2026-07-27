@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>勤怠管理 | 鳥やま 社内システム</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+  <a class="store-header" href="tenpo.html">勤務店舗：<span class="store-header-current">新安城店</span><span class="store-header-caret">▾</span></a>
+  <img src="../assets/logo.png" alt="鳥やま" class="logo" style="width:64px;margin-bottom:24px;">
+  <span class="demo-tag">テスト版・仮データ</span>
+  <h1 class="page-title">勤怠管理</h1>
+
+  <div id="step-top" class="step">
+    <div class="nav" style="width:100%;margin-top:16px;">
+      <a class="nav-btn" href="kintai-daikoku.html">打刻する（ICカード）</a>
+      <button class="nav-btn" onclick="goTo('role')">勤怠確認</button>
+    </div>
+  </div>
+
+  <div id="step-role" class="step" style="display:none;">
+    <p class="page-note" style="margin-bottom:16px;">どちらで確認しますか？</p>
+    <div class="nav" style="width:100%;">
+      <button class="nav-btn" onclick="goTo('baito')">バイト</button>
+      <button class="nav-btn" onclick="goTo('shain')">社員</button>
+    </div>
+  </div>
+
+  <div id="step-baito" class="step" style="display:none;">
+    <select id="baito-name" class="field">
+      <option value="">お名前を選択</option>
+      <option>山田</option>
+      <option>佐藤</option>
+      <option>高橋</option>
+      <option>伊藤</option>
+    </select>
+    <input id="baito-pin" class="field" type="password" inputmode="numeric" maxlength="4" placeholder="PIN（4桁）">
+    <p id="baito-error" class="error-msg" style="display:none;">名前とPINを確認してください（テスト版のPINは 1234）</p>
+    <button class="nav-btn" style="width:100%;" onclick="loginBaito()">確認する</button>
+  </div>
+
+  <div id="step-shain" class="step" style="display:none;">
+    <input id="shain-id" class="field" type="text" placeholder="社員ID">
+    <input id="shain-pin" class="field" type="password" inputmode="numeric" maxlength="4" placeholder="PIN（4桁）">
+    <p id="shain-error" class="error-msg" style="display:none;">IDとPINを確認してください（テスト版は 0001〜0002 / PIN 0000）</p>
+    <button class="nav-btn" style="width:100%;" onclick="loginShain()">確認する</button>
+  </div>
+
+  <div id="step-result" class="step" style="display:none;">
+    <p class="result-name" id="result-name"></p>
+    <div class="table-scroll">
+      <table class="result-table wide">
+        <tr>
+          <th>日付</th><th>出勤</th><th>退勤</th><th>休憩</th>
+          <th>総労働時間</th><th>実働時間</th><th>所定内労働</th>
+          <th>法定時間外労働</th><th>法定休日労働</th><th>深夜労働</th><th>備考</th>
+        </tr>
+        <tr>
+          <td>7/23</td><td>17:02</td><td>22:14</td><td>0:30</td>
+          <td>5:12</td><td>4:42</td><td>4:42</td>
+          <td>0:00</td><td>0:00</td><td>0:14</td><td class="tag-ok">正常</td>
+        </tr>
+        <tr>
+          <td>7/24</td><td>16:58</td><td>23:05</td><td>0:30</td>
+          <td>6:07</td><td>5:37</td><td>5:00</td>
+          <td>0:37</td><td>0:00</td><td>1:05</td><td class="tag-ok">正常</td>
+        </tr>
+        <tr>
+          <td>7/25</td><td>17:12</td><td>21:30</td><td>0:15</td>
+          <td>4:18</td><td>4:03</td><td>4:03</td>
+          <td>0:00</td><td>0:00</td><td>0:00</td><td class="tag-late">遅刻12分</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="summary-block">
+      <p class="summary-title">7月 出勤状況（仮データ）</p>
+      <div class="summary-row"><span>出勤日数</span><span>18.0日</span></div>
+      <div class="summary-row"><span>法定休日出勤日数</span><span>1.0日</span></div>
+      <div class="summary-row"><span>欠勤日数</span><span>0.0日</span></div>
+      <div class="summary-row"><span>打刻日数</span><span>18.0日</span></div>
+    </div>
+
+    <div class="summary-block">
+      <p class="summary-title">7月 勤務時間（仮データ）</p>
+      <div class="summary-row"><span>総労働時間</span><span>95:30</span></div>
+      <div class="summary-row"><span>実働時間</span><span>88:15</span></div>
+      <div class="summary-row"><span>所定内労働時間</span><span>82:00</span></div>
+      <div class="summary-row"><span>残業時間</span><span>6:15</span></div>
+      <div class="summary-row"><span>法定休日労働時間</span><span>4:30</span></div>
+      <div class="summary-row"><span>深夜労働時間</span><span>3:20</span></div>
+    </div>
+
+    <div class="summary-block">
+      <p class="summary-title">7月 休日・休暇取得（仮データ）</p>
+      <div class="summary-row"><span>公休日数</span><span>8.0日</span></div>
+      <div class="summary-row"><span>有給休暇日数</span><span>1.0日</span></div>
+      <div class="summary-row"><span>本日までの有給休暇残数</span><span>9.0日</span></div>
+      <div class="summary-row"><span>振替休日日数</span><span>0.0日</span></div>
+      <div class="summary-row"><span>本日までの振替休日残数</span><span>0.0日</span></div>
+      <div class="summary-row"><span>代休日数</span><span>0.0日</span></div>
+    </div>
+  </div>
+
+  <a class="back" href="staff.html" id="back-link">スタッフメニューへ戻る</a>
+</div>
+
+<script>
+var staffBaito = { "山田": "1234", "佐藤": "1234", "高橋": "1234", "伊藤": "1234" };
+var staffShain = { "0001": { pin: "0000", name: "店長" }, "0002": { pin: "0000", name: "副店長" } };
+
+function goTo(step) {
+  var steps = ["top", "role", "baito", "shain", "result"];
+  for (var i = 0; i < steps.length; i++) {
+    document.getElementById("step-" + steps[i]).style.display = "none";
+  }
+  document.getElementById("step-" + step).style.display = "block";
+}
+
+function loginBaito() {
+  var name = document.getElementById("baito-name").value;
+  var pin = document.getElementById("baito-pin").value;
+  var errorEl = document.getElementById("baito-error");
+  if (name && staffBaito[name] === pin) {
+    errorEl.style.display = "none";
+    document.getElementById("result-name").textContent = name + " さんの勤怠（直近3日・仮データ）";
+    goTo("result");
+  } else {
+    errorEl.style.display = "block";
+  }
+}
+
+function loginShain() {
+  var id = document.getElementById("shain-id").value;
+  var pin = document.getElementById("shain-pin").value;
+  var errorEl = document.getElementById("shain-error");
+  if (staffShain[id] && staffShain[id].pin === pin) {
+    errorEl.style.display = "none";
+    document.getElementById("result-name").textContent = staffShain[id].name + " さんの勤怠（直近3日・仮データ）";
+    goTo("result");
+  } else {
+    errorEl.style.display = "block";
+  }
+}
+</script>
+</body>
+</html>
