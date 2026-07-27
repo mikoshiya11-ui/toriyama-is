@@ -1070,15 +1070,15 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 288px;
+  width: 336px;
   margin-bottom: 14px;
 }
 
 .shift-cal-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
-  width: 288px;
+  gap: 5px;
+  width: 336px;
   margin-bottom: 20px;
 }
 
@@ -1096,7 +1096,7 @@ button {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 14px;
   cursor: pointer;
   padding: 2px;
   background: transparent;
@@ -1120,9 +1120,9 @@ button {
 }
 
 .shift-cal-cell .cal-time {
-  font-size: 9px;
+  font-size: 10px;
   color: #888880;
-  margin-top: 2px;
+  margin-top: 3px;
 }
 
 .shift-cal-cell.selected .cal-time {
@@ -1130,10 +1130,35 @@ button {
 }
 
 .shift-cal-editor {
-  width: 288px;
+  width: 336px;
   border: 1px solid #111111;
   padding: 16px;
   margin-bottom: 20px;
+}
+
+.shift-cal-pattern-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.shift-cal-pattern-btn {
+  flex: 1 1 auto;
+  padding: 8px 6px;
+  font-size: 11px;
+  border: 1px solid #111111;
+  border-radius: 2px;
+  background: transparent;
+  color: #111111;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.shift-cal-pattern-btn:hover,
+.shift-cal-pattern-btn.active {
+  background: #111111;
+  color: #ffffff;
 }
 
 .shift-cal-editor-title {
