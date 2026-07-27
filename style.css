@@ -151,10 +151,327 @@ button {
   margin: 0 0 16px;
 }
 
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
 .result-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
+}
+
+.result-table.wide {
+  min-width: 760px;
+}
+
+.tag-late {
+  color: #993556;
+  font-size: 11px;
+}
+
+.tag-ok {
+  color: #888880;
+  font-size: 11px;
+}
+
+.summary-block {
+  width: 100%;
+  margin-top: 28px;
+}
+
+.summary-title {
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #111111;
+  margin: 0 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #111111;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid #d3d1c7;
+}
+
+.summary-row span:first-child {
+  color: #888880;
+}
+
+.summary-row span:last-child {
+  color: #111111;
+}
+
+.admin-wrap {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 40px 32px 60px;
+}
+
+.admin-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.admin-header img {
+  width: 40px;
+}
+
+.admin-title {
+  font-size: 18px;
+  letter-spacing: 1px;
+  margin: 0;
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.admin-card {
+  display: block;
+  background: #f9f7f2;
+  border: 1px solid #d3d1c7;
+  border-radius: 10px;
+  padding: 18px 20px;
+  text-decoration: none;
+  color: #111111;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.admin-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 26px rgba(17, 17, 17, 0.1);
+  border-color: #111111;
+}
+
+.admin-card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  letter-spacing: 1px;
+  margin: 0 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #111111;
+}
+
+.admin-card-icon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.admin-card-icon svg {
+  width: 100%;
+  height: 100%;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.4;
+}
+
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  padding: 7px 0;
+  border-bottom: 1px solid #e5e2d9;
+}
+
+.status-pill {
+  font-size: 11px;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+
+.status-pill.working {
+  background: #eaf3de;
+  color: #27500a;
+}
+
+.status-pill.done {
+  background: #e5e2d9;
+  color: #888880;
+}
+
+.status-pill.pending {
+  background: #faeeda;
+  color: #854f0b;
+}
+
+@media (max-width: 640px) {
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sales-today {
+  width: 100%;
+  max-width: 626px;
+  margin: 0 auto 48px;
+}
+
+.sales-today-title {
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: #888880;
+  text-align: center;
+  margin: 0 0 16px;
+}
+
+.sales-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.sales-card {
+  display: block;
+  flex: 1 1 100px;
+  max-width: 120px;
+  text-align: center;
+  padding: 14px 8px;
+  border: 1px solid #d3d1c7;
+  border-radius: 0;
+  background: #f9f7f2;
+  text-decoration: none;
+  color: #111111;
+  transition: border-color 0.15s ease;
+}
+
+.sales-card:hover {
+  border-color: #111111;
+}
+
+.sales-card-name {
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: #888880;
+  margin: 0 0 8px;
+}
+
+.sales-card-amount {
+  font-size: 15px;
+  margin: 0;
+}
+
+.sales-total-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.sales-total {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 20px;
+  border: 1px solid #111111;
+  border-radius: 0;
+  background: #111111;
+  color: #ffffff;
+  text-decoration: none;
+  transition: opacity 0.15s ease;
+}
+
+.sales-total:hover {
+  opacity: 0.85;
+}
+
+.sales-total .sales-card-name {
+  color: #d3d1c7;
+  margin: 0;
+  font-size: 12px;
+}
+
+.sales-total .sales-card-amount {
+  font-size: 20px;
+}
+
+.icon-grid {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 28px;
+  max-width: 626px;
+  margin: 0 auto;
+}
+
+.icon-tile {
+  width: 190px;
+  padding: 40px 20px;
+  border: 1px solid #111111;
+  border-radius: 0;
+  text-align: center;
+  text-decoration: none;
+  color: #111111;
+  background: rgba(255, 255, 255, 0.5);
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.icon-tile:hover {
+  background: #111111;
+  color: #ffffff;
+  transform: translateY(-6px);
+  box-shadow: 0 16px 30px rgba(17, 17, 17, 0.15);
+}
+
+.icon-tile-icon {
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 18px;
+}
+
+.icon-tile-icon svg {
+  width: 100%;
+  height: 100%;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.3;
+}
+
+.icon-tile h2 {
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 2px;
+  margin: 0;
+}
+
+.admin-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 0 48px;
+  text-align: center;
+}
+
+.admin-hero-logo {
+  width: 140px;
+  margin-bottom: 16px;
+}
+
+.admin-hero-name {
+  font-size: 12px;
+  letter-spacing: 6px;
+  color: #888880;
+  margin: 0 0 4px;
+}
+
+.admin-hero-title {
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: 4px;
+  margin: 0;
 }
 
 .result-table th,
@@ -377,4 +694,74 @@ button {
 
 .report-row .field {
   flex: 1;
+}
+
+.card-wait {
+  width: 100%;
+  text-align: center;
+  padding: 40px 0;
+  border: 1px dashed #888880;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.card-wait-icon {
+  font-size: 28px;
+  margin-bottom: 10px;
+}
+
+.card-wait-text {
+  font-size: 13px;
+  color: #888880;
+  letter-spacing: 1px;
+}
+
+.card-result {
+  width: 100%;
+  text-align: center;
+  padding: 24px 0;
+  border: 1px solid #111111;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.card-result.new {
+  border-color: #854f0b;
+}
+
+.card-result-name {
+  font-size: 18px;
+  letter-spacing: 1px;
+  margin: 0 0 6px;
+}
+
+.card-result-sub {
+  font-size: 12px;
+  color: #888880;
+  margin: 0;
+}
+
+.hidden-input {
+  position: absolute;
+  opacity: 0;
+  height: 1px;
+  width: 1px;
+  pointer-events: none;
+}
+
+.log-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #d3d1c7;
+  width: 100%;
+}
+
+.log-row span:first-child {
+  color: #111111;
+}
+
+.log-row span:last-child {
+  color: #888880;
 }
