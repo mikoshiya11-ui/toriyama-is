@@ -3,20 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>掲示板 | 鳥やま 社内システム</title>
+<title>掲示板（管理者） | 鳥やま 社内システム</title>
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
 <div class="wrap">
   <img src="../assets/logo.png" alt="鳥やま" class="logo" style="width:64px;margin-bottom:24px;">
   <span class="demo-tag">テスト版・仮データ</span>
-  <h1 class="page-title">掲示板</h1>
-  <p class="page-note" style="margin-bottom:16px;">勤務店舗：新安城店（仮設定）</p>
-
-  <div class="filter-tabs" style="width:288px;">
-    <button class="filter-tab active" id="tab-all" onclick="setFilter('all')">会社全体</button>
-    <button class="filter-tab" id="tab-mine" onclick="setFilter('mine')">勤務する店舗</button>
-  </div>
+  <h1 class="page-title">掲示板（管理者）</h1>
+  <p class="page-note" style="margin-bottom:16px;">全店舗のお知らせをまとめて表示します</p>
 
   <div class="step post-form" style="width:288px;">
     <select class="field" id="post-store">
@@ -31,12 +26,10 @@
 
   <div class="step" id="post-list" style="width:288px;"></div>
 
-  <a class="back" href="renraku.html">社内連絡へ戻る</a>
+  <a class="back" href="admin-renraku.html">社内連絡（管理者）へ戻る</a>
 </div>
 
 <script>
-var myStore = "新安城店";
-var filterMode = "all";
 var totalStaff = 6;
 var posts = [
   { store: "本店", time: "14:20", body: "明日の仕込み一部前倒しします。", read: 4 },
@@ -44,26 +37,10 @@ var posts = [
   { store: "新安城店", time: "昨日", body: "土曜のイベント用に炭を多めに用意してください。", read: 5 }
 ];
 
-function setFilter(mode) {
-  filterMode = mode;
-  document.getElementById("tab-all").classList.toggle("active", mode === "all");
-  document.getElementById("tab-mine").classList.toggle("active", mode === "mine");
-  render();
-}
-
 function render() {
   var list = document.getElementById("post-list");
   list.innerHTML = "";
-  var visible = posts.filter(function (p) {
-    return filterMode === "all" || p.store === myStore;
-  });
-
-  if (visible.length === 0) {
-    list.innerHTML = '<p class="page-note">お知らせはまだありません</p>';
-    return;
-  }
-
-  for (var i = 0; i < visible.length; i++) {
+  for (var i = 0; i < posts.length; i++) {
     (function (p) {
       var card = document.createElement("div");
       card.className = "post-card";
@@ -112,7 +89,7 @@ function render() {
       card.appendChild(footer);
 
       list.appendChild(card);
-    })(visible[i]);
+    })(posts[i]);
   }
 }
 

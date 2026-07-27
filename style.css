@@ -364,6 +364,12 @@ button {
   margin: 0;
 }
 
+.sales-card-month {
+  font-size: 10px;
+  color: #888880;
+  margin: 4px 0 0;
+}
+
 .sales-total-row {
   display: flex;
   gap: 10px;
@@ -546,6 +552,25 @@ button {
   margin-top: 0;
 }
 
+.store-box {
+  width: 100%;
+  border: 1px solid #111111;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+
+.store-box-title {
+  font-size: 12px;
+  letter-spacing: 2px;
+  margin: 0 0 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #111111;
+}
+
+.store-box .status-row:last-child {
+  border-bottom: none;
+}
+
 .stock-row {
   display: flex;
   flex-direction: column;
@@ -607,6 +632,30 @@ button {
 .order-btn.ordered:hover {
   background: transparent;
   color: #3b6d11;
+}
+
+.filter-tabs {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.filter-tab {
+  flex: 1;
+  padding: 10px 4px;
+  border: 1px solid #111111;
+  border-radius: 0;
+  background: transparent;
+  color: #111111;
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-align: center;
+}
+
+.filter-tab.active {
+  background: #111111;
+  color: #ffffff;
 }
 
 .post-form {
