@@ -14,40 +14,213 @@
   <p class="page-note" style="margin-bottom:16px;">閉店後、本日の実績を入力してください</p>
 
   <div class="step" style="width:288px;">
-    <select class="field" id="store">
+    <select class="field" id="store" onchange="updatePreview()">
       <option>新安城店</option>
       <option>本店</option>
       <option>駅前店</option>
+      <option>南店</option>
+      <option>西店</option>
     </select>
-    <input class="field" id="date" type="date">
+    <input class="field" id="date" type="date" onchange="updatePreview()">
     <div class="report-row">
-      <input class="field" id="sales" type="number" placeholder="売上金額（円）">
-      <input class="field" id="guests" type="number" placeholder="客数（人）">
+      <input class="field" id="sales" type="number" placeholder="売上金額（円）" oninput="updatePreview()">
+      <input class="field" id="guests" type="number" placeholder="客数（人）" oninput="updatePreview()">
     </div>
+
+    <p class="page-note" style="text-align:left;margin:4px 0 8px;">以下は手入力の項目です</p>
+    <div class="report-row">
+      <input class="field" id="targetRate" type="number" step="0.1" placeholder="目標達成率（%）">
+      <input class="field" id="cumulativeProfit" type="number" placeholder="累積営業利益（円）">
+    </div>
+    <select class="field" id="weather">
+      <option value="">天気を選択</option>
+      <option>晴れ</option>
+      <option>くもり</option>
+      <option>雨</option>
+      <option>雪</option>
+      <option>その他</option>
+    </select>
+
+    <div class="report-preview" id="report-preview">
+      <p class="report-preview-title">この内容から自動計算（表示のみ・入力不要）</p>
+      <div class="report-preview-row"><span>客単価</span><span id="preview-spend">-</span></div>
+      <div class="report-preview-row"><span>人時売上</span><span id="preview-plh">-</span></div>
+      <p class="report-preview-note" id="preview-note"></p>
+    </div>
+
     <textarea class="field" id="note" placeholder="メモ（任意）" style="height:60px;"></textarea>
     <button class="nav-btn" style="width:100%;" onclick="submitReport()">この内容で報告する</button>
-    <p class="confirm-msg" id="confirm-msg" style="display:none;">報告しました（テスト表示）</p>
+    <p class="confirm-msg" id="confirm-msg" style="display:none;">報告しました（テスト表示・この端末内のみ保存）</p>
   </div>
 
-  <p class="page-note" style="margin:28px 0 8px;text-align:left;">直近の報告（仮データ）</p>
-  <table class="result-table" style="width:288px;">
-    <tr><th>日付</th><th>店舗</th><th>売上</th><th>客数</th></tr>
-    <tr><td>7/23</td><td>新安城</td><td>¥182,400</td><td>64</td></tr>
-    <tr><td>7/24</td><td>本店</td><td>¥215,900</td><td>78</td></tr>
-    <tr><td>7/25</td><td>駅前</td><td>¥163,200</td><td>55</td></tr>
-  </table>
+  <p class="page-note" style="margin:28px 0 4px;text-align:left;">直近の報告（<span id="avg-store-name"></span>の人時売上平均：<span id="avg-plh">-</span>）</p>
+  <div class="table-scroll">
+    <table class="result-table wide" id="history-table">
+      <tr>
+        <th>日付</th><th>店舗</th><th>天気</th><th>売上</th><th>客数</th>
+        <th>客単価</th><th>人時売上</th><th>達成率</th><th>累積営業利益</th>
+      </tr>
+      <tbody id="history-body"></tbody>
+    </table>
+  </div>
 
   <a class="back" href="staff.html">スタッフメニューへ戻る</a>
 </div>
 
+<script src="../shift-utils.js"></script>
 <script>
+var reportsKey = "toriyama_sales_reports";
+var confirmedKey = "toriyama_shift_confirmed_month";
+
+// 初回のみ：過去の仮データをシード（既に保存済みならそちらを優先）
+var fallbackReports = [
+  { store: "新安城店", date: "2026-07-23", sales: 182400, guests: 64, note: "", targetRate: null, cumulativeProfit: null, weather: "" },
+  { store: "本店", date: "2026-07-24", sales: 215900, guests: 78, note: "", targetRate: null, cumulativeProfit: null, weather: "" },
+  { store: "駅前店", date: "2026-07-25", sales: 163200, guests: 55, note: "", targetRate: null, cumulativeProfit: null, weather: "" }
+];
+
 var dateEl = document.getElementById("date");
 var today = new Date().toISOString().split("T")[0];
 dateEl.value = today;
 
-function submitReport() {
-  document.getElementById("confirm-msg").style.display = "block";
+function getReports() {
+  try {
+    var raw = localStorage.getItem(reportsKey);
+    if (!raw) { return fallbackReports.slice(); }
+    return JSON.parse(raw);
+  } catch (e) { return fallbackReports.slice(); }
 }
+
+function saveReports(list) {
+  localStorage.setItem(reportsKey, JSON.stringify(list));
+}
+
+// その店舗・その日の確定シフトから、合計労働時間（人時）を算出する
+// （実打刻ではなく確定シフトを基にした概算。シフトが未確定の日は算出できない）
+function getLaborHours(store, dateStr) {
+  var confirmed = {};
+  try { confirmed = JSON.parse(localStorage.getItem(confirmedKey) || "{}"); }
+  catch (e) { confirmed = {}; }
+
+  var staff = STORE_STAFF[store] || [];
+  var total = 0;
+  var found = false;
+  staff.forEach(function (name) {
+    var rec = confirmed[name] && confirmed[name][dateStr];
+    if (rec && !rec.off && rec.start && rec.end) {
+      total += labelToHour(rec.end) - labelToHour(rec.start);
+      found = true;
+    }
+  });
+  return found ? total : null;
+}
+
+function formatYen(n) {
+  if (n === null || n === undefined || isNaN(n)) { return "-"; }
+  return "¥" + Math.round(n).toLocaleString();
+}
+
+function calcSpend(sales, guests) {
+  if (!sales || !guests) { return null; }
+  return sales / guests;
+}
+
+function calcPerLaborHour(sales, laborHours) {
+  if (!sales || !laborHours) { return null; }
+  return sales / laborHours;
+}
+
+function updatePreview() {
+  var store = document.getElementById("store").value;
+  var date = document.getElementById("date").value;
+  var sales = parseFloat(document.getElementById("sales").value);
+  var guests = parseFloat(document.getElementById("guests").value);
+
+  var spend = calcSpend(sales, guests);
+  var laborHours = getLaborHours(store, date);
+  var plh = calcPerLaborHour(sales, laborHours);
+
+  document.getElementById("preview-spend").textContent = spend !== null ? formatYen(spend) : "-";
+  document.getElementById("preview-plh").textContent = plh !== null ? formatYen(plh) + " /人時" : "-";
+
+  var note = document.getElementById("preview-note");
+  if (laborHours === null) {
+    note.textContent = "※ この店舗・この日の確定シフトがまだ無いため、人時売上は計算できません";
+  } else {
+    note.textContent = "※ 確定シフトの合計労働時間（" + Math.round(laborHours * 10) / 10 + "時間）から算出";
+  }
+}
+
+function renderHistory() {
+  var reports = getReports();
+  var selectedStore = document.getElementById("store").value;
+
+  // 新しい日付が上にくるように並べる
+  var sorted = reports.slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+
+  var body = document.getElementById("history-body");
+  body.innerHTML = "";
+
+  sorted.forEach(function (r) {
+    var spend = calcSpend(r.sales, r.guests);
+    var laborHours = getLaborHours(r.store, r.date);
+    var plh = calcPerLaborHour(r.sales, laborHours);
+
+    var tr = document.createElement("tr");
+    tr.innerHTML =
+      "<td>" + r.date + "</td>" +
+      "<td>" + r.store + "</td>" +
+      "<td>" + (r.weather || "-") + "</td>" +
+      "<td>" + formatYen(r.sales) + "</td>" +
+      "<td>" + (r.guests || "-") + "</td>" +
+      "<td>" + (spend !== null ? formatYen(spend) : "-") + "</td>" +
+      "<td>" + (plh !== null ? formatYen(plh) : "-") + "</td>" +
+      "<td>" + (r.targetRate !== null && r.targetRate !== undefined && r.targetRate !== "" ? r.targetRate + "%" : "-") + "</td>" +
+      "<td>" + (r.cumulativeProfit !== null && r.cumulativeProfit !== undefined && r.cumulativeProfit !== "" ? formatYen(r.cumulativeProfit) : "-") + "</td>";
+    body.appendChild(tr);
+  });
+
+  // 選択中の店舗の人時売上平均を出す
+  var samples = [];
+  sorted.forEach(function (r) {
+    if (r.store !== selectedStore) { return; }
+    var laborHours = getLaborHours(r.store, r.date);
+    var plh = calcPerLaborHour(r.sales, laborHours);
+    if (plh !== null) { samples.push(plh); }
+  });
+  document.getElementById("avg-store-name").textContent = selectedStore;
+  if (samples.length) {
+    var avg = samples.reduce(function (a, b) { return a + b; }, 0) / samples.length;
+    document.getElementById("avg-plh").textContent = formatYen(avg);
+  } else {
+    document.getElementById("avg-plh").textContent = "-";
+  }
+}
+
+function submitReport() {
+  var report = {
+    store: document.getElementById("store").value,
+    date: document.getElementById("date").value,
+    sales: parseFloat(document.getElementById("sales").value) || 0,
+    guests: parseFloat(document.getElementById("guests").value) || 0,
+    note: document.getElementById("note").value,
+    targetRate: document.getElementById("targetRate").value === "" ? null : parseFloat(document.getElementById("targetRate").value),
+    cumulativeProfit: document.getElementById("cumulativeProfit").value === "" ? null : parseFloat(document.getElementById("cumulativeProfit").value),
+    weather: document.getElementById("weather").value
+  };
+
+  var reports = getReports();
+  reports.push(report);
+  saveReports(reports);
+
+  document.getElementById("confirm-msg").style.display = "block";
+  renderHistory();
+}
+
+document.getElementById("store").addEventListener("change", renderHistory);
+
+updatePreview();
+renderHistory();
 </script>
 </body>
 </html>

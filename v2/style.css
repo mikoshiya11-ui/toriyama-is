@@ -826,6 +826,33 @@ button {
   flex: 1;
 }
 
+.report-preview {
+  width: 100%;
+  border: 1px solid #111111;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.report-preview-title {
+  font-size: 11px;
+  color: #888880;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.report-preview-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  padding: 4px 0;
+}
+
+.report-preview-note {
+  font-size: 11px;
+  color: #888880;
+  margin-top: 6px;
+}
+
 .card-wait {
   width: 100%;
   text-align: center;
