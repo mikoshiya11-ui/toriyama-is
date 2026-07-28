@@ -1027,6 +1027,7 @@ button {
   display: flex;
   border-bottom: 1px solid #e5e2d9;
   min-height: 82px;
+  background: #ffffff;
 }
 
 .shift-gantt-row:nth-child(even) {

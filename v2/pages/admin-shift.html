@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>シフト確定（管理者） | 鳥やま 社内システム</title>
+<title>シフト管理（管理者） | 鳥やま 社内システム</title>
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
 <div class="admin-wrap" style="max-width:1100px;">
   <div class="admin-hero" style="padding-bottom:24px;">
     <img src="../assets/logo.png" alt="鳥やま" class="admin-hero-logo" style="width:64px;">
-    <p class="admin-hero-title" style="font-size:15px;letter-spacing:2px;">シフト確定（月表示）</p>
+    <p class="admin-hero-title" style="font-size:15px;letter-spacing:2px;">シフト管理</p>
     <span class="demo-tag" style="margin-top:12px;">テスト版・仮データ</span>
   </div>
 
@@ -177,7 +177,6 @@ function render() {
   var inner = document.getElementById("gantt-inner");
   var emptyState = document.getElementById("empty-state");
   var numDays = daysInMonth(curYear, curMonthIdx);
-  var mKey = monthKey(curYear, curMonthIdx);
 
   if (!staff.length) {
     inner.innerHTML = "";
@@ -190,7 +189,6 @@ function render() {
   var html = buildHeader(numDays);
   staff.forEach(function (name) {
     var req = requests[name];
-    var monthAlreadyConfirmed = employeeMonthHasData(confirmed, name, mKey);
     var empRecord = confirmed[name] || {};
 
     html += '<div class="shift-gantt-row">';
@@ -207,8 +205,10 @@ function render() {
         html += buildBar(name, dKey, labelToHour(reqDay.start), labelToHour(reqDay.end), "request");
       }
 
-      if (monthAlreadyConfirmed) {
-        if (confDay && !confDay.off) {
+      // その日について「確定データが実際にあるか」だけを見る（月単位のフラグでは判定しない）。
+      // これにより「仮置きに戻す」でその日の確定データだけを消した時、他の日の確定状態はそのまま保たれる。
+      if (confDay) {
+        if (!confDay.off) {
           html += buildBar(name, dKey, labelToHour(confDay.start), labelToHour(confDay.end), "confirmed");
         } else {
           html += '<div class="empty-hint" data-role="add" data-name="' + name + '" data-datekey="' + dKey + '">＋</div>';
@@ -239,8 +239,13 @@ document.getElementById("gantt-inner").addEventListener("mousedown", function (e
     takeSnapshot();
     var track = addBtn.closest(".shift-gantt-track");
     var reqBar = track.querySelector(".shift-bar-request");
+    // その月がまだ一度も確定されていない場合は、追加した直後は「仮置き」の見た目にする
+    // （確定する前から黒塗りの確定済みバーに見えてしまうと紛らわしいため）
+    var confirmedNow = getConfirmed();
+    var mKeyNow = monthKey(curYear, curMonthIdx);
+    var alreadyConfirmed = employeeMonthHasData(confirmedNow, addBtn.dataset.name, mKeyNow);
     track.innerHTML = reqBar ? reqBar.outerHTML : "";
-    track.innerHTML += buildBar(addBtn.dataset.name, addBtn.dataset.datekey, 17, 22, "confirmed");
+    track.innerHTML += buildBar(addBtn.dataset.name, addBtn.dataset.datekey, 17, 22, alreadyConfirmed ? "confirmed" : "preview");
     return;
   }
 
@@ -311,6 +316,7 @@ function deleteBar(barEl) {
 }
 
 document.getElementById("gantt-inner").addEventListener("contextmenu", function (e) {
+  if (zoomedOut) { return; } // 月間表示は全体確認用。編集は詳細表示に戻ってから行う
   var barEl = e.target.closest(".shift-bar");
   if (!barEl) { return; }
   e.preventDefault();
@@ -321,12 +327,40 @@ document.getElementById("gantt-inner").addEventListener("contextmenu", function 
   menu.style.display = "flex";
 });
 
+function revertToPreview(barEl) {
+  // 見た目だけをpreviewクラスにするのではなく、その日の確定データ自体を消す。
+  // そうしないと、月表示への切替や店舗・月の移動でrender()が再実行された瞬間に
+  // 確定データが残ったままなので「確定済み」の見た目へ巻き戻ってしまう。
+  var name = barEl.dataset.name;
+  var dKey = barEl.dataset.datekey;
+  var confirmed = getConfirmed();
+  if (confirmed[name] && confirmed[name][dKey] !== undefined) {
+    delete confirmed[name][dKey];
+    saveConfirmedData(confirmed);
+  }
+
+  // 見た目は、この日のセルだけをリクエストデータから作り直す（全体再描画すると
+  // takeSnapshot()で取った「元に戻す」用のスナップショットが無意味になるため、
+  // add/deleteと同じくこのセル単体をその場で書き換える）
+  var track = barEl.closest(".shift-gantt-track");
+  var requests = getRequests();
+  var reqDay = (requests[name] && requests[name][dKey]) || null;
+  var reqBar = track.querySelector(".shift-bar-request");
+
+  track.innerHTML = reqBar ? reqBar.outerHTML : "";
+  if (reqDay && reqDay.requested) {
+    track.innerHTML += buildBar(name, dKey, labelToHour(reqDay.start), labelToHour(reqDay.end), "preview");
+  } else {
+    track.innerHTML += '<div class="empty-hint" data-role="add" data-name="' + name + '" data-datekey="' + dKey + '">＋</div>';
+  }
+}
+
 document.getElementById("bar-context-menu").addEventListener("click", function (e) {
   var btn = e.target.closest("button[data-action]");
   if (!btn || !contextTargetBar) { hideContextMenu(); return; }
   takeSnapshot();
   if (btn.dataset.action === "preview") {
-    contextTargetBar.classList.add("preview");
+    revertToPreview(contextTargetBar);
   } else if (btn.dataset.action === "delete") {
     deleteBar(contextTargetBar);
   }
