@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STAFF | 鳥やま 社内システム</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+  <img src="../assets/logo.png" alt="鳥やま" class="logo" style="width:64px;margin-bottom:24px;">
+  <h1 class="page-title">STAFF</h1>
+  <p class="page-note" style="margin-bottom:16px;">店舗を選ぶと、在籍しているスタッフが表示されます</p>
+
+  <div class="nav" id="store-btn-list" style="margin-bottom:24px;"></div>
+
+  <div id="staff-area" style="width:100%;"></div>
+
+  <a class="back" href="staff.html">スタッフメニューへ戻る</a>
+</div>
+
+<script src="../shift-utils.js"></script>
+<script src="../staff-utils.js"></script>
+<script>
+var STORES = Object.keys(STORE_STAFF);
+var activeStore = "";
+
+function renderStoreButtons() {
+  var wrap = document.getElementById("store-btn-list");
+  wrap.innerHTML = "";
+  STORES.forEach(function (store) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "nav-btn" + (store === activeStore ? " active" : "");
+    btn.textContent = store;
+    btn.onclick = function () {
+      activeStore = (activeStore === store) ? "" : store;
+      renderStoreButtons();
+      renderStaff();
+    };
+    wrap.appendChild(btn);
+  });
+}
+
+function genderLabel(g) {
+  if (g === "male") { return "男性"; }
+  if (g === "female") { return "女性"; }
+  if (g === "other") { return "その他"; }
+  return "";
+}
+
+function staffCard(person) {
+  var card = document.createElement("div");
+  card.className = "staff-card";
+
+  var photoWrap = document.createElement("div");
+  photoWrap.className = "staff-photo";
+  if (person.photo) {
+    var img = document.createElement("img");
+    img.src = person.photo;
+    img.alt = person.name;
+    photoWrap.appendChild(img);
+  } else {
+    photoWrap.classList.add("staff-photo-empty");
+    photoWrap.textContent = (person.name || "?").slice(0, 1);
+  }
+  card.appendChild(photoWrap);
+
+  var name = document.createElement("p");
+  name.className = "staff-card-name";
+  name.textContent = person.name;
+  card.appendChild(name);
+
+  var sub = document.createElement("p");
+  sub.className = "staff-card-sub";
+  var subParts = [];
+  if (person.hireDate) { subParts.push("入社 " + person.hireDate); }
+  if (genderLabel(person.gender)) { subParts.push(genderLabel(person.gender)); }
+  sub.textContent = subParts.join("　");
+  card.appendChild(sub);
+
+  return card;
+}
+
+function renderStaff() {
+  var area = document.getElementById("staff-area");
+  area.innerHTML = "";
+
+  if (!activeStore) {
+    area.innerHTML = '<p class="page-note">上から店舗を選んでください</p>';
+    return;
+  }
+
+  var roster = getStaffRoster().filter(function (p) { return p.store === activeStore; });
+
+  if (!roster.length) {
+    area.innerHTML = '<p class="page-note">' + activeStore + 'にはまだ登録されたスタッフがいません</p>';
+    return;
+  }
+
+  var grid = document.createElement("div");
+  grid.className = "staff-card-grid";
+  roster.forEach(function (person) {
+    grid.appendChild(staffCard(person));
+  });
+  area.appendChild(grid);
+}
+
+renderStoreButtons();
+renderStaff();
+</script>
+</body>
+</html>

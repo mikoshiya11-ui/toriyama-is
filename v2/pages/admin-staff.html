@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STAFF登録 | 鳥やま 社内システム</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="admin-wrap" style="max-width:640px;">
+  <div class="admin-hero" style="padding-bottom:16px;">
+    <img src="../assets/logo.png" alt="鳥やま" class="admin-hero-logo" style="width:64px;">
+    <p class="admin-hero-title" style="font-size:15px;letter-spacing:2px;">STAFF登録</p>
+  </div>
+
+  <div class="nav" style="flex-direction:row;width:auto;gap:8px;margin:0 auto 24px;justify-content:center;">
+    <button type="button" class="nav-btn" id="tab-register" onclick="switchTab('register')">登録</button>
+    <button type="button" class="nav-btn" id="tab-remove" onclick="switchTab('remove')">解除</button>
+  </div>
+
+  <div id="register-panel" class="step" style="width:100%;max-width:336px;margin:0 auto;">
+    <label class="staff-photo-input-label" for="in-photo">
+      <div class="staff-photo staff-photo-picker" id="photo-preview">写真を選択</div>
+    </label>
+    <input type="file" id="in-photo" accept="image/*" style="display:none;" onchange="onPhotoChange(event)">
+
+    <input class="field" id="in-name" type="text" placeholder="名前">
+
+    <select class="field" id="in-store">
+      <option value="">所属店舗を選択</option>
+    </select>
+
+    <label class="page-note" style="display:block;text-align:left;margin:4px 0 2px;">生年月日</label>
+    <input class="field" id="in-birth" type="date">
+
+    <label class="page-note" style="display:block;text-align:left;margin:4px 0 2px;">入社日</label>
+    <input class="field" id="in-hire" type="date">
+
+    <select class="field" id="in-gender">
+      <option value="">性別を選択</option>
+      <option value="male">男性</option>
+      <option value="female">女性</option>
+      <option value="other">その他・回答しない</option>
+    </select>
+
+    <p class="page-note" id="register-error" style="color:#993556;display:none;margin-bottom:10px;"></p>
+
+    <button type="button" class="nav-btn" onclick="doRegister()">登録</button>
+  </div>
+
+  <div id="remove-panel" class="step" style="width:100%;max-width:480px;margin:0 auto;display:none;">
+    <p class="page-note" style="margin-bottom:16px;">解除するスタッフを選んでください</p>
+    <div id="remove-list"></div>
+  </div>
+
+  <a class="back" href="../admin.html">管理者ダッシュボードへ戻る</a>
+</div>
+
+<div class="kintai-edit-overlay" id="confirm-overlay" style="display:none;">
+  <div class="kintai-edit-modal">
+    <p class="page-note" id="confirm-text" style="margin-bottom:16px;"></p>
+    <div class="nav" style="flex-direction:row;width:auto;gap:8px;justify-content:center;">
+      <button type="button" class="nav-btn" onclick="closeConfirm()">キャンセル</button>
+      <button type="button" class="nav-btn" onclick="confirmRemove()">解除する</button>
+    </div>
+  </div>
+</div>
+
+<script src="../shift-utils.js"></script>
+<script src="../staff-utils.js"></script>
+<script>
+var photoDataUrl = "";
+var pendingRemoveId = null;
+
+function populateStoreSelect() {
+  var sel = document.getElementById("in-store");
+  Object.keys(STORE_STAFF).forEach(function (store) {
+    var o = document.createElement("option");
+    o.value = store;
+    o.textContent = store;
+    sel.appendChild(o);
+  });
+}
+
+function switchTab(tab) {
+  document.getElementById("register-panel").style.display = (tab === "register") ? "block" : "none";
+  document.getElementById("remove-panel").style.display = (tab === "remove") ? "block" : "none";
+  document.getElementById("tab-register").classList.toggle("active", tab === "register");
+  document.getElementById("tab-remove").classList.toggle("active", tab === "remove");
+  if (tab === "remove") { renderRemoveList(); }
+}
+
+function onPhotoChange(e) {
+  var file = e.target.files[0];
+  if (!file) { return; }
+  var reader = new FileReader();
+  reader.onload = function () {
+    photoDataUrl = reader.result;
+    var preview = document.getElementById("photo-preview");
+    preview.classList.remove("staff-photo-picker");
+    preview.textContent = "";
+    var img = document.createElement("img");
+    img.src = photoDataUrl;
+    preview.appendChild(img);
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearForm() {
+  document.getElementById("in-name").value = "";
+  document.getElementById("in-store").value = "";
+  document.getElementById("in-birth").value = "";
+  document.getElementById("in-hire").value = "";
+  document.getElementById("in-gender").value = "";
+  document.getElementById("in-photo").value = "";
+  photoDataUrl = "";
+  var preview = document.getElementById("photo-preview");
+  preview.classList.add("staff-photo-picker");
+  preview.textContent = "写真を選択";
+}
+
+function doRegister() {
+  var name = document.getElementById("in-name").value.trim();
+  var store = document.getElementById("in-store").value;
+  var birthDate = document.getElementById("in-birth").value;
+  var hireDate = document.getElementById("in-hire").value;
+  var gender = document.getElementById("in-gender").value;
+  var errorEl = document.getElementById("register-error");
+
+  if (!name || !store) {
+    errorEl.textContent = "名前と所属店舗は必須です";
+    errorEl.style.display = "block";
+    return;
+  }
+  errorEl.style.display = "none";
+
+  addStaffMember({
+    name: name,
+    store: store,
+    birthDate: birthDate,
+    hireDate: hireDate,
+    gender: gender,
+    photo: photoDataUrl
+  });
+
+  clearForm();
+  alert(name + "さんを登録しました");
+}
+
+function genderLabel(g) {
+  if (g === "male") { return "男性"; }
+  if (g === "female") { return "女性"; }
+  if (g === "other") { return "その他"; }
+  return "";
+}
+
+function renderRemoveList() {
+  var list = document.getElementById("remove-list");
+  list.innerHTML = "";
+  var roster = getStaffRoster();
+
+  if (!roster.length) {
+    list.innerHTML = '<p class="page-note">登録されているスタッフがいません</p>';
+    return;
+  }
+
+  roster.forEach(function (person) {
+    var row = document.createElement("div");
+    row.className = "staff-list-row";
+
+    var photo = document.createElement("div");
+    photo.className = "staff-photo staff-photo-small";
+    if (person.photo) {
+      var img = document.createElement("img");
+      img.src = person.photo;
+      photo.appendChild(img);
+    } else {
+      photo.classList.add("staff-photo-empty");
+      photo.textContent = (person.name || "?").slice(0, 1);
+    }
+    row.appendChild(photo);
+
+    var info = document.createElement("div");
+    info.className = "staff-list-info";
+    var nameLine = document.createElement("p");
+    nameLine.className = "staff-list-name";
+    nameLine.textContent = person.name;
+    var subLine = document.createElement("p");
+    subLine.className = "staff-list-sub";
+    var subParts = [person.store];
+    if (genderLabel(person.gender)) { subParts.push(genderLabel(person.gender)); }
+    if (person.hireDate) { subParts.push("入社 " + person.hireDate); }
+    subLine.textContent = subParts.join("　/　");
+    info.appendChild(nameLine);
+    info.appendChild(subLine);
+    row.appendChild(info);
+
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "kintai-row-edit-btn";
+    btn.textContent = "解除";
+    btn.onclick = function () { openConfirm(person.id, person.name); };
+    row.appendChild(btn);
+
+    list.appendChild(row);
+  });
+}
+
+function openConfirm(id, name) {
+  pendingRemoveId = id;
+  document.getElementById("confirm-text").textContent = name + "さんを解除しますか？";
+  document.getElementById("confirm-overlay").style.display = "flex";
+}
+
+function closeConfirm() {
+  pendingRemoveId = null;
+  document.getElementById("confirm-overlay").style.display = "none";
+}
+
+function confirmRemove() {
+  if (!pendingRemoveId) { return; }
+  removeStaffMember(pendingRemoveId);
+  closeConfirm();
+  renderRemoveList();
+}
+
+populateStoreSelect();
+switchTab("register");
+</script>
+</body>
+</html>
