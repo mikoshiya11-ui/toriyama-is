@@ -9,34 +9,58 @@
 <body>
 <div class="wrap">
   <img src="../assets/logo.png" alt="鳥やま" class="logo" style="width:64px;margin-bottom:24px;">
-  <span class="demo-tag" id="mode-tag">テスト版</span>
-  <p class="page-note" id="conn-status" style="margin-bottom:8px;"></p>
-  <h1 class="page-title">打刻</h1>
-  <p class="page-note" style="margin-bottom:16px;">お名前を選んで、出勤・退勤・休憩のボタンを押してください</p>
 
-  <div class="step" style="width:288px;">
-    <select class="field" id="punch-name">
-      <option value="">お名前を選択</option>
+  <!-- ============================================================
+       店舗設定画面：この端末で初めて開いたとき／設定変更時に表示
+       ============================================================ -->
+  <div id="setup-area" style="display:none;width:288px;">
+    <h1 class="page-title">店舗設定</h1>
+    <p class="page-note" style="margin-bottom:16px;">この端末を固定する店舗を選んでください。一度設定すれば、次回からはこの画面は出ません。</p>
+
+    <select class="field" id="setup-store-select">
+      <option value="">店舗を選択</option>
     </select>
 
-    <div class="punch-btn-row">
-      <div class="punch-btn-col">
-        <button type="button" class="punch-btn punch-in" id="btn-in" onclick="doPunch('in')" disabled>出勤</button>
-        <button type="button" class="punch-btn-half punch-break-start" id="btn-break-start" onclick="doPunch('break_start')" disabled>休憩</button>
+    <p class="page-note" id="setup-error" style="color:#993556;display:none;margin-bottom:10px;"></p>
+
+    <button type="button" class="nav-btn" onclick="confirmStoreSetup()">この店舗に設定する</button>
+  </div>
+
+  <!-- ============================================================
+       打刻画面：店舗設定済みのときに表示
+       ============================================================ -->
+  <div id="punch-area" style="display:none;width:100%;flex-direction:column;align-items:center;">
+    <span class="demo-tag" id="mode-tag">テスト版</span>
+    <p class="page-note" id="conn-status" style="margin-bottom:8px;"></p>
+    <h1 class="page-title">打刻</h1>
+    <p class="page-note" id="store-label-note" style="margin-bottom:16px;"></p>
+
+    <div class="step" style="width:288px;">
+      <select class="field" id="punch-name">
+        <option value="">お名前を選択</option>
+      </select>
+
+      <div class="punch-btn-row">
+        <div class="punch-btn-col">
+          <button type="button" class="punch-btn punch-in" id="btn-in" onclick="doPunch('in')" disabled>出勤</button>
+          <button type="button" class="punch-btn-half punch-break-start" id="btn-break-start" onclick="doPunch('break_start')" disabled>休憩</button>
+        </div>
+        <div class="punch-btn-col">
+          <button type="button" class="punch-btn punch-out" id="btn-out" onclick="doPunch('out')" disabled>退勤</button>
+          <button type="button" class="punch-btn-half punch-break-end" id="btn-break-end" onclick="doPunch('break_end')" disabled>休憩戻り</button>
+        </div>
       </div>
-      <div class="punch-btn-col">
-        <button type="button" class="punch-btn punch-out" id="btn-out" onclick="doPunch('out')" disabled>退勤</button>
-        <button type="button" class="punch-btn-half punch-break-end" id="btn-break-end" onclick="doPunch('break_end')" disabled>休憩戻り</button>
+
+      <div id="result-area" class="card-result" style="display:none;">
+        <p class="card-result-name" id="result-name"></p>
+        <p class="card-result-sub" id="result-sub"></p>
       </div>
+
+      <p class="page-note" style="margin:24px 0 8px;text-align:left;">直近の打刻ログ</p>
+      <div id="log-list"></div>
     </div>
 
-    <div id="result-area" class="card-result" style="display:none;">
-      <p class="card-result-name" id="result-name"></p>
-      <p class="card-result-sub" id="result-sub"></p>
-    </div>
-
-    <p class="page-note" style="margin:24px 0 8px;text-align:left;">直近の打刻ログ</p>
-    <div id="log-list"></div>
+    <a class="back" href="#" onclick="changeStoreSetup(); return false;" style="margin-top:16px;">店舗設定を変更</a>
   </div>
 
   <a class="back" href="kintai.html">勤怠管理へ戻る</a>
@@ -49,11 +73,64 @@
 <script>
 /*
   この端末が固定されている店舗コード／店舗名。
-  設置時に v2/supabase/schema.sql の stores.code と合わせて設定する。
-  （打刻端末は店舗を選択させない仕様のため、ここで固定する）
+  以前はここに固定値を直接書いていたが、店舗ごとにファイルを書き換える必要があり
+  運用が煩雑だったため、初回起動時に画面で選んでlocalStorageに保存する方式に変更した。
+  （打刻画面自体は引き続き店舗を選択させない＝一度設定したら固定という仕様は維持）
 */
-var STORE_CODE = "sanchome";
-var STORE_NAME = "餃子酒場さんちょうめ";
+var terminalStoreKey = "toriyama_terminal_store_name";
+var STORE_CODE = "";
+var STORE_NAME = "";
+
+function populateSetupStoreSelect() {
+  var sel = document.getElementById("setup-store-select");
+  STORE_LIST.forEach(function (store) {
+    var o = document.createElement("option");
+    o.value = store;
+    o.textContent = store;
+    sel.appendChild(o);
+  });
+}
+
+function confirmStoreSetup() {
+  var store = document.getElementById("setup-store-select").value;
+  var errorEl = document.getElementById("setup-error");
+  if (!store) {
+    errorEl.textContent = "店舗を選択してください";
+    errorEl.style.display = "block";
+    return;
+  }
+  localStorage.setItem(terminalStoreKey, store);
+  startPunchScreen(store);
+}
+
+function changeStoreSetup() {
+  if (!confirm("店舗設定を変更しますか？（この端末で打刻する店舗が切り替わります）")) { return; }
+  localStorage.removeItem(terminalStoreKey);
+  document.getElementById("punch-area").style.display = "none";
+  document.getElementById("setup-area").style.display = "block";
+}
+
+function startPunchScreen(store) {
+  STORE_NAME = store;
+  STORE_CODE = STORE_CODE_MAP[store] || "";
+
+  document.getElementById("setup-area").style.display = "none";
+  document.getElementById("punch-area").style.display = "flex";
+  document.getElementById("store-label-note").textContent = STORE_NAME + "　お名前を選んで、出勤・退勤・休憩のボタンを押してください";
+
+  populateNameSelect();
+
+  document.getElementById("mode-tag").textContent = TORIYAMA_DB.isConfigured()
+    ? "Supabase連携・オフライン対応"
+    : "テスト版（ローカル保存のみ）";
+
+  renderLog();
+  updateConnStatus();
+  if (TORIYAMA_DB.isConfigured()) {
+    flushQueue();
+    setInterval(flushQueue, 30000);
+  }
+}
 
 function populateNameSelect() {
   var sel = document.getElementById("punch-name");
@@ -230,20 +307,18 @@ document.getElementById("punch-name").addEventListener("change", function () {
   setButtonsEnabled(!!this.value);
 });
 
-populateNameSelect();
-
-document.getElementById("mode-tag").textContent = TORIYAMA_DB.isConfigured()
-  ? "Supabase連携・オフライン対応"
-  : "テスト版（ローカル保存のみ）";
-
 window.addEventListener("online", function () { updateConnStatus(); flushQueue(); });
 window.addEventListener("offline", updateConnStatus);
 
-renderLog();
-updateConnStatus();
-if (TORIYAMA_DB.isConfigured()) {
-  flushQueue();
-  setInterval(flushQueue, 30000);
+// ============================================================
+// 起動処理：店舗設定済みなら打刻画面へ、未設定なら店舗設定画面を表示
+// ============================================================
+populateSetupStoreSelect();
+var savedStore = localStorage.getItem(terminalStoreKey);
+if (savedStore && STORE_LIST.indexOf(savedStore) !== -1) {
+  startPunchScreen(savedStore);
+} else {
+  document.getElementById("setup-area").style.display = "block";
 }
 </script>
 </body>
