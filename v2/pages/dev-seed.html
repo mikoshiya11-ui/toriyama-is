@@ -22,10 +22,17 @@
     <p class="confirm-msg" id="confirm-msg" style="display:none;">投入しました。下のリンクから確認できます。</p>
   </div>
 
+  <div class="step" style="width:320px;margin-top:20px;">
+    <p class="page-note" style="text-align:left;margin-bottom:12px;">新安城店・田中（社員）の2026年7月分の確定シフトを投入します（平日は毎日13:00〜24:00で出勤済みという想定。個人の勤怠確認画面の表を完成させて見るためのデータです）。</p>
+    <button class="nav-btn" style="width:100%;" onclick="seedConfirmedData()">田中さん・7月の確定シフトを投入する</button>
+    <p class="confirm-msg" id="confirm-msg-2" style="display:none;">投入しました。下のリンクから確認できます。</p>
+  </div>
+
   <div class="nav" style="width:320px;margin-top:24px;">
     <a class="nav-btn" href="admin-shift.html">シフト確定（管理者）で見る</a>
     <a class="nav-btn" href="shift-confirm.html">確定シフト確認（スタッフ）で見る</a>
     <a class="nav-btn" href="shift-submit.html">希望シフト送信（スタッフ）で見る</a>
+    <a class="nav-btn" href="admin-kintai-personal.html">個人の勤怠確認（管理者）で見る</a>
   </div>
 
   <a class="back" href="../admin.html">管理者ダッシュボードへ戻る</a>
@@ -104,6 +111,57 @@ function seedData() {
 
   localStorage.setItem(requestsKey, JSON.stringify(existing));
   document.getElementById("confirm-msg").style.display = "block";
+}
+
+// ============================================================
+// 新安城店・田中さんの2026年7月分の「確定シフト」を投入する
+// （admin-kintai-personal.html は toriyama_shift_confirmed_month を見るため、
+//   希望シフトではなくこちらに投入する必要がある）
+// ============================================================
+var confirmedKey = "toriyama_shift_confirmed_month";
+
+var CONFIRMED_SEED_DATA = {
+  "田中": {
+    "2026-07-01": { off: false, start: "13:00", end: "24:00" },
+    "2026-07-02": { off: false, start: "13:00", end: "24:00" },
+    "2026-07-03": { off: false, start: "13:00", end: "24:00" },
+    "2026-07-06": { off: false, start: "13:00", end: "24:00" },
+    "2026-07-07": { off: false, start: "13:00", end: "24:00" },
+    "2026-07-08": { off: false, start: "13:00", end: "24:00" },
+    "2026-07-09": { off: false, start: "13:00", end: "24:00" },
+    "2026-07-10": { off: false, start: "13:00", end: "24:00" },
+    "2026-07-13": { off: false, start: "13:00", end: "24:00" },
+    "2026-07-14": { off: false, start: "13:00", end: "24:00" },
+    "2026-07-15": { off: false, start: "13:00", end: "24:00" },
+    "2026-07-16": { off: false, start: "13:00", end: "24:00" },
+    "2026-07-17": { off: false, start: "13:00", end: "24:00" },
+    "2026-07-20": { off: false, start: "13:00", end: "24:00" },
+    "2026-07-21": { off: false, start: "13:00", end: "24:00" },
+    "2026-07-22": { off: false, start: "13:00", end: "24:00" },
+    "2026-07-23": { off: false, start: "13:00", end: "24:00" },
+    "2026-07-24": { off: false, start: "13:00", end: "24:00" },
+    "2026-07-27": { off: false, start: "13:00", end: "24:00" },
+    "2026-07-28": { off: false, start: "13:00", end: "24:00" },
+    "2026-07-29": { off: false, start: "13:00", end: "24:00" },
+    "2026-07-30": { off: false, start: "13:00", end: "24:00" },
+    "2026-07-31": { off: false, start: "13:00", end: "24:00" }
+  }
+};
+
+function seedConfirmedData() {
+  var existing = {};
+  try { existing = JSON.parse(localStorage.getItem(confirmedKey) || "{}"); }
+  catch (e) { existing = {}; }
+
+  for (var name in CONFIRMED_SEED_DATA) {
+    if (!existing[name]) { existing[name] = {}; }
+    for (var dateKey in CONFIRMED_SEED_DATA[name]) {
+      existing[name][dateKey] = CONFIRMED_SEED_DATA[name][dateKey];
+    }
+  }
+
+  localStorage.setItem(confirmedKey, JSON.stringify(existing));
+  document.getElementById("confirm-msg-2").style.display = "block";
 }
 </script>
 </body>

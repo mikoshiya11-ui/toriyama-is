@@ -21,7 +21,10 @@
       <option>南店</option>
       <option>西店</option>
     </select>
-    <input class="field" id="date" type="date" onchange="updatePreview()">
+    <div class="date-field-wrap">
+      <input class="field" id="date" type="date" onchange="updateWeekday();updatePreview();">
+      <span class="date-field-label" id="weekday-label">-</span>
+    </div>
     <div class="report-row">
       <input class="field" id="sales" type="number" placeholder="売上金額（円）" oninput="updatePreview()">
       <input class="field" id="guests" type="number" placeholder="客数（人）" oninput="updatePreview()">
@@ -83,6 +86,17 @@ var dateEl = document.getElementById("date");
 var today = new Date().toISOString().split("T")[0];
 dateEl.value = today;
 
+var WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
+function updateWeekday() {
+  var val = document.getElementById("date").value;
+  var label = document.getElementById("weekday-label");
+  if (!val) { label.textContent = "-"; return; }
+  var d = new Date(val + "T00:00:00");
+  var parts = val.split("-");
+  label.textContent = parts[0] + "/" + parts[1] + "/" + parts[2] + "(" + WEEKDAY_LABELS[d.getDay()] + ")";
+}
+updateWeekday();
+
 function getReports() {
   try {
     var raw = localStorage.getItem(reportsKey);
@@ -117,7 +131,7 @@ function getLaborHours(store, dateStr) {
 
 function formatYen(n) {
   if (n === null || n === undefined || isNaN(n)) { return "-"; }
-  return "¥" + Math.round(n).toLocaleString();
+  return Math.round(n).toLocaleString() + "円";
 }
 
 function calcSpend(sales, guests) {

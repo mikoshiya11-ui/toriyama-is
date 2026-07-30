@@ -850,6 +850,35 @@ button {
   flex: 1;
 }
 
+.date-field-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.date-field-wrap input.field {
+  color: transparent;
+}
+
+.date-field-wrap input.field:focus {
+  color: transparent;
+}
+
+.date-field-label {
+  position: absolute;
+  left: 13px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  color: #111111;
+  pointer-events: none;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
 .report-preview {
   width: 100%;
   border: 1px solid #111111;
