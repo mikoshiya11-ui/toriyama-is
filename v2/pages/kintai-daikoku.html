@@ -9,32 +9,25 @@
 <body>
 <div class="wrap">
   <img src="../assets/logo.png" alt="鳥やま" class="logo" style="width:64px;margin-bottom:24px;">
-  <span class="demo-tag" id="mode-tag">テスト版・ICカード連携</span>
+  <span class="demo-tag" id="mode-tag">テスト版</span>
   <p class="page-note" id="conn-status" style="margin-bottom:8px;"></p>
   <h1 class="page-title">打刻</h1>
+  <p class="page-note" style="margin-bottom:16px;">お名前を選んで、出勤・退勤ボタンを押してください</p>
 
   <div class="step" style="width:288px;">
-    <div id="wait-area" class="card-wait">
-      <div class="card-wait-icon">▢</div>
-      <p class="card-wait-text">ICカードをリーダーにタッチしてください</p>
+    <select class="field" id="punch-name">
+      <option value="">お名前を選択</option>
+    </select>
+
+    <div class="punch-btn-row">
+      <button type="button" class="punch-btn punch-in" id="btn-in" onclick="doPunch('in')" disabled>出勤</button>
+      <button type="button" class="punch-btn punch-out" id="btn-out" onclick="doPunch('out')" disabled>退勤</button>
     </div>
 
     <div id="result-area" class="card-result" style="display:none;">
       <p class="card-result-name" id="result-name"></p>
       <p class="card-result-sub" id="result-sub"></p>
     </div>
-
-    <div id="new-card-area" class="step" style="display:none;width:100%;">
-      <p class="page-note" style="margin-bottom:10px;">未登録のカードです。持ち主を選んで登録してください。</p>
-      <p class="error-msg" style="text-align:center;">※スマホのSuica（Apple Pay等）は登録できません。社員証または交通系ICカード本体をお使いください。</p>
-      <p class="card-result-sub" style="margin-bottom:12px;">読み取ったID: <span id="new-card-id"></span></p>
-      <select class="field" id="new-card-name">
-        <option value="">お名前を選択</option>
-      </select>
-      <button class="nav-btn" style="width:100%;" onclick="registerCard()">このカードを登録する</button>
-    </div>
-
-    <input id="card-input" class="hidden-input" type="text" autocomplete="off">
 
     <p class="page-note" style="margin:24px 0 8px;text-align:left;">直近の打刻ログ</p>
     <div id="log-list"></div>
@@ -48,7 +41,7 @@
 <script src="../shift-utils.js"></script>
 <script>
 /*
-  このリーダー端末が固定されている店舗コード／店舗名。
+  この端末が固定されている店舗コード／店舗名。
   設置時に v2/supabase/schema.sql の stores.code と合わせて設定する。
   （打刻端末は店舗を選択させない仕様のため、ここで固定する）
 */
@@ -56,7 +49,7 @@ var STORE_CODE = "shinanjo";
 var STORE_NAME = "新安城店";
 
 function populateNameSelect() {
-  var sel = document.getElementById("new-card-name");
+  var sel = document.getElementById("punch-name");
   (STORE_STAFF[STORE_NAME] || []).forEach(function (name) {
     var o = document.createElement("option");
     o.value = name;
@@ -66,11 +59,9 @@ function populateNameSelect() {
 }
 
 // ---- ローカル（レガシー/オフライン共通）ストレージ ----
-var legacyCardsKey = "toriyama_staff_cards";   // Supabase未設定時の簡易カード台帳
 var localLogKey = "toriyama_kintai_log";       // 画面表示用の打刻ログ（両モード共通）
-var cardCacheKey = "toriyama_card_cache";      // Supabaseから同期したカード台帳のキャッシュ（オフライン閲覧用）
+var employeeCacheKey = "toriyama_employee_cache"; // Supabaseから解決した従業員IDのキャッシュ（名前→employee）
 var queueKey = "toriyama_punch_queue";         // 未送信の打刻キュー
-var lastTypeKey = "toriyama_last_type";        // 従業員ごとの直近の打刻区分（出/退の判定用）
 
 function getJSON(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); }
@@ -103,13 +94,7 @@ function renderLog() {
   }
 }
 
-function focusInput() {
-  document.getElementById("card-input").focus();
-}
-
 function showResult(name, typeLabel, queued) {
-  document.getElementById("wait-area").style.display = "none";
-  document.getElementById("new-card-area").style.display = "none";
   var resultArea = document.getElementById("result-area");
   resultArea.style.display = "block";
   document.getElementById("result-name").textContent = name + "　" + typeLabel;
@@ -117,46 +102,24 @@ function showResult(name, typeLabel, queued) {
 
   setTimeout(function () {
     resultArea.style.display = "none";
-    document.getElementById("wait-area").style.display = "block";
-    focusInput();
   }, 2500);
 }
 
-var pendingCardId = "";
+function setButtonsEnabled(enabled) {
+  document.getElementById("btn-in").disabled = !enabled;
+  document.getElementById("btn-out").disabled = !enabled;
+}
 
 // ============================================================
 // モードA: Supabase未設定 → 従来どおりlocalStorageのみの簡易デモ
 // ============================================================
-function legacyGetCards() { return getJSON(legacyCardsKey, {}); }
-function legacySaveCards(c) { setJSON(legacyCardsKey, c); }
-
-function legacyPunch(name) {
+function legacyPunch(name, type) {
+  var typeLabel = (type === "in") ? "出勤" : "退勤";
   var log = getJSON(localLogKey, []);
-  var last = null;
-  for (var i = log.length - 1; i >= 0; i--) {
-    if (log[i].name === name) { last = log[i]; break; }
-  }
-  var type = (last && last.type === "出勤") ? "退勤" : "出勤";
-  log.push({ name: name, type: type, time: timeNow() });
+  log.push({ name: name, type: typeLabel, time: timeNow() });
   setJSON(localLogKey, log);
   renderLog();
-  showResult(name, type, false);
-}
-
-function legacyRegisterCard(cardId, name) {
-  var cards = legacyGetCards();
-  cards[cardId] = name;
-  legacySaveCards(cards);
-  legacyPunch(name);
-}
-
-function legacyOnScan(cardId) {
-  var cards = legacyGetCards();
-  if (cards[cardId]) {
-    legacyPunch(cards[cardId]);
-  } else {
-    openRegistration(cardId);
-  }
+  showResult(name, typeLabel, false);
 }
 
 // ============================================================
@@ -167,14 +130,17 @@ async function getStoreId() {
   return await TORIYAMA_DB.getStoreId(STORE_CODE);
 }
 
-async function refreshCardCache() {
-  if (!navigator.onLine) { return; }
-  var rows = await TORIYAMA_DB.fetchAllCards();
-  var cache = {};
-  rows.forEach(function (row) {
-    if (row.employees) { cache[row.card_id] = { id: row.employees.id, name: row.employees.name }; }
-  });
-  setJSON(cardCacheKey, cache);
+async function resolveEmployee(name) {
+  var cache = getJSON(employeeCacheKey, {});
+  if (cache[name]) { return cache[name]; }
+  if (!navigator.onLine) { return null; }
+  var employee = await TORIYAMA_DB.findEmployeeByName(name);
+  if (employee) {
+    cache[name] = { id: employee.id, name: employee.name };
+    setJSON(employeeCacheKey, cache);
+    return cache[name];
+  }
+  return null;
 }
 
 async function flushQueue() {
@@ -186,7 +152,7 @@ async function flushQueue() {
   var remaining = [];
   for (var i = 0; i < queue.length; i++) {
     var item = queue[i];
-    var res = await TORIYAMA_DB.insertPunch(item.employeeId, item.storeId, item.type, item.punchedAt, "offline_queue");
+    var res = await TORIYAMA_DB.insertPunch(item.employeeId, item.storeId, item.type, item.punchedAt, "button");
     if (res.error) { remaining.push(item); }
   }
   setJSON(queueKey, remaining);
@@ -206,125 +172,67 @@ function updateConnStatus() {
   }
 }
 
-async function cloudPunch(employee) {
-  var lastType = getJSON(lastTypeKey, {});
-  var type = (lastType[employee.id] === "in") ? "out" : "in";
+async function cloudPunch(name, type) {
   var typeLabel = (type === "in") ? "出勤" : "退勤";
   var nowIso = new Date().toISOString();
 
-  lastType[employee.id] = type;
-  setJSON(lastTypeKey, lastType);
-
+  var employee = await resolveEmployee(name);
   var storeId = await getStoreId();
   var queued = true;
-  if (navigator.onLine && storeId) {
-    var res = await TORIYAMA_DB.insertPunch(employee.id, storeId, type, nowIso, "card");
+
+  if (employee && navigator.onLine && storeId) {
+    var res = await TORIYAMA_DB.insertPunch(employee.id, storeId, type, nowIso, "button");
     queued = !!res.error;
   }
   if (queued) {
     var q = getJSON(queueKey, []);
-    q.push({ employeeId: employee.id, storeId: storeId, type: type, punchedAt: nowIso });
+    q.push({ employeeId: employee ? employee.id : null, storeId: storeId, type: type, punchedAt: nowIso, name: name });
     setJSON(queueKey, q);
   }
 
   var log = getJSON(localLogKey, []);
-  log.push({ name: employee.name, type: typeLabel, time: timeNow(), queued: queued });
+  log.push({ name: name, type: typeLabel, time: timeNow(), queued: queued });
   setJSON(localLogKey, log);
 
   renderLog();
   updateConnStatus();
-  showResult(employee.name, typeLabel, queued);
-}
-
-async function cloudOnScan(cardId) {
-  var cache = getJSON(cardCacheKey, {});
-  if (cache[cardId]) {
-    cloudPunch(cache[cardId]);
-    return;
-  }
-  if (navigator.onLine) {
-    var employee = await TORIYAMA_DB.findEmployeeByCard(cardId);
-    if (employee) {
-      cache[cardId] = employee;
-      setJSON(cardCacheKey, cache);
-      cloudPunch(employee);
-      return;
-    }
-  }
-  openRegistration(cardId);
-}
-
-async function cloudRegisterCard(cardId, name) {
-  var employee = await TORIYAMA_DB.findEmployeeByName(name);
-  if (!employee) {
-    document.getElementById("new-card-id").textContent = cardId + "（従業員マスタ未登録：先にSupabase側で登録してください）";
-    return;
-  }
-  await TORIYAMA_DB.registerCard(cardId, employee.id);
-  var cache = getJSON(cardCacheKey, {});
-  cache[cardId] = { id: employee.id, name: employee.name };
-  setJSON(cardCacheKey, cache);
-  cloudPunch({ id: employee.id, name: employee.name });
+  showResult(name, typeLabel, queued);
 }
 
 // ============================================================
 // 共通の画面制御
 // ============================================================
-function openRegistration(cardId) {
-  pendingCardId = cardId;
-  document.getElementById("wait-area").style.display = "none";
-  document.getElementById("new-card-id").textContent = cardId;
-  document.getElementById("new-card-area").style.display = "block";
-}
-
-function registerCard() {
-  var name = document.getElementById("new-card-name").value;
+function doPunch(type) {
+  var name = document.getElementById("punch-name").value;
   if (!name) { return; }
-  document.getElementById("new-card-area").style.display = "none";
+  setButtonsEnabled(false);
+  var finish = function () { setButtonsEnabled(true); };
   if (TORIYAMA_DB.isConfigured()) {
-    cloudRegisterCard(pendingCardId, name);
+    cloudPunch(name, type).then(finish);
   } else {
-    legacyRegisterCard(pendingCardId, name);
+    legacyPunch(name, type);
+    finish();
   }
 }
 
-document.getElementById("card-input").addEventListener("keydown", function (e) {
-  if (e.key === "Enter") {
-    var cardId = this.value.trim();
-    this.value = "";
-    if (!cardId) { return; }
-    if (TORIYAMA_DB.isConfigured()) {
-      cloudOnScan(cardId);
-    } else {
-      legacyOnScan(cardId);
-    }
-  }
-});
-
-document.addEventListener("click", function () {
-  var newCardArea = document.getElementById("new-card-area");
-  if (newCardArea.style.display === "none") {
-    focusInput();
-  }
+document.getElementById("punch-name").addEventListener("change", function () {
+  setButtonsEnabled(!!this.value);
 });
 
 populateNameSelect();
 
 document.getElementById("mode-tag").textContent = TORIYAMA_DB.isConfigured()
   ? "Supabase連携・オフライン対応"
-  : "テスト版・ICカード連携（ローカル保存のみ）";
+  : "テスト版（ローカル保存のみ）";
 
 window.addEventListener("online", function () { updateConnStatus(); flushQueue(); });
 window.addEventListener("offline", updateConnStatus);
 
-focusInput();
 renderLog();
 updateConnStatus();
 if (TORIYAMA_DB.isConfigured()) {
-  refreshCardCache();
   flushQueue();
   setInterval(flushQueue, 30000);
-  setInterval(refreshCardCache, 5 * 60 * 1000);
 }
 </script>
 </body>

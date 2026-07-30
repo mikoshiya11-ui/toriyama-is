@@ -976,6 +976,39 @@ button {
   color: #888880;
 }
 
+.punch-btn-row {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  margin: 20px 0;
+}
+
+.punch-btn {
+  flex: 1;
+  padding: 28px 0;
+  font-size: 16px;
+  letter-spacing: 3px;
+  border: 1px solid #111111;
+  background: #ffffff;
+  cursor: pointer;
+  font-family: inherit;
+  border-radius: 8px;
+}
+
+.punch-btn:hover {
+  background: #f9f7f2;
+}
+
+.punch-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.punch-btn.punch-out {
+  color: #993556;
+  border-color: #993556;
+}
+
 .store-header {
   display: flex;
   align-items: center;
