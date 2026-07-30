@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>個人の勤怠確認（管理者） | 鳥やま 社内システム</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="admin-wrap" style="max-width:960px;">
+  <div class="admin-hero" style="padding-bottom:16px;">
+    <img src="../assets/logo.png" alt="鳥やま" class="admin-hero-logo" style="width:64px;">
+    <p class="admin-hero-title" style="font-size:15px;letter-spacing:2px;">個人の勤怠確認</p>
+    <span class="demo-tag" style="margin-top:12px;">テスト版・簡易計算</span>
+  </div>
+
+  <div class="shift-gantt-toolrow" style="justify-content:center;max-width:640px;margin:0 auto 8px;">
+    <select class="shift-store-select" id="store-select" onchange="onStoreChange()">
+      <option value="">店舗を選択</option>
+      <option>新安城店</option>
+      <option>本店</option>
+      <option>駅前店</option>
+      <option>南店</option>
+      <option>西店</option>
+    </select>
+
+    <select class="shift-store-select" id="name-select" onchange="render()" disabled>
+      <option value="">先に店舗を選択</option>
+    </select>
+
+    <div class="nav" style="flex-direction:row;width:auto;gap:6px;">
+      <button class="nav-btn" style="padding:8px 12px;" onclick="changeMonth(-1)">◀</button>
+      <span class="nav-btn" id="month-label" style="cursor:default;min-width:100px;"></span>
+      <button class="nav-btn" style="padding:8px 12px;" onclick="changeMonth(1)">▶</button>
+    </div>
+  </div>
+
+  <p class="page-note" id="calc-note" style="text-align:center;margin-bottom:16px;">
+    確定シフトの時刻をもとにした簡易計算です。休憩は労働時間に応じた法定最低ラインで自動算出。法定休日の区分・有給/振替休日の残数は未実装（別途運用でご確認ください）。
+  </p>
+
+  <div class="table-scroll">
+    <table class="result-table wide" id="detail-table">
+      <tr>
+        <th>日付</th><th>出勤</th><th>退勤</th><th>休憩</th><th>総労働時間</th>
+        <th>実働時間</th><th>所定内労働</th><th>法定時間外労働</th><th>法定休日労働</th><th>深夜労働</th><th>備考</th>
+      </tr>
+      <tbody id="detail-body"></tbody>
+    </table>
+  </div>
+  <p class="page-note" id="empty-note" style="display:none;margin:12px 0 24px;"></p>
+
+  <div class="store-box-grid" id="summary-grid" style="margin-top:24px;">
+    <div class="store-box">
+      <p class="store-box-title" id="summary-title-1"></p>
+      <div class="report-preview-row"><span>出勤日数</span><span id="s-work-days">-</span></div>
+      <div class="report-preview-row"><span>法定休日出勤日数</span><span id="s-holiday-work-days">-</span></div>
+      <div class="report-preview-row"><span>欠勤日数</span><span id="s-absent-days">-</span></div>
+      <div class="report-preview-row"><span>打刻日数</span><span id="s-punch-days">-</span></div>
+    </div>
+
+    <div class="store-box">
+      <p class="store-box-title" id="summary-title-2"></p>
+      <div class="report-preview-row"><span>総労働時間</span><span id="s-total-hours">-</span></div>
+      <div class="report-preview-row"><span>実働時間</span><span id="s-actual-hours">-</span></div>
+      <div class="report-preview-row"><span>所定内労働時間</span><span id="s-regular-hours">-</span></div>
+      <div class="report-preview-row"><span>残業時間</span><span id="s-overtime-hours">-</span></div>
+      <div class="report-preview-row"><span>法定休日労働時間</span><span id="s-holiday-hours">-</span></div>
+      <div class="report-preview-row"><span>深夜労働時間</span><span id="s-night-hours">-</span></div>
+    </div>
+
+    <div class="store-box">
+      <p class="store-box-title" id="summary-title-3"></p>
+      <div class="report-preview-row"><span>公休日数</span><span id="s-off-days">-</span></div>
+      <div class="report-preview-row"><span>有給休暇日数</span><span>-</span></div>
+      <div class="report-preview-row"><span>本日までの有給休暇残数</span><span>-</span></div>
+      <div class="report-preview-row"><span>振替休日日数</span><span>-</span></div>
+      <div class="report-preview-row"><span>本日までの振替休日残数</span><span>-</span></div>
+      <div class="report-preview-row"><span>代休日数</span><span>-</span></div>
+    </div>
+  </div>
+
+  <a class="back" href="admin-kintai.html">勤怠管理へ戻る</a>
+</div>
+
+<script src="../shift-utils.js"></script>
+<script>
+var confirmedKey = "toriyama_shift_confirmed_month";
+
+var today = new Date();
+var curYear = today.getFullYear();
+var curMonthIdx = today.getMonth();
+var todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
+
+function getConfirmed() {
+  try { return JSON.parse(localStorage.getItem(confirmedKey) || "{}"); }
+  catch (e) { return {}; }
+}
+
+function changeMonth(delta) {
+  var d = new Date(curYear, curMonthIdx + delta, 1);
+  curYear = d.getFullYear();
+  curMonthIdx = d.getMonth();
+  render();
+}
+
+function onStoreChange() {
+  var store = document.getElementById("store-select").value;
+  var nameSel = document.getElementById("name-select");
+  nameSel.innerHTML = "";
+
+  if (!store) {
+    nameSel.disabled = true;
+    var opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "先に店舗を選択";
+    nameSel.appendChild(opt);
+  } else {
+    nameSel.disabled = false;
+    var placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "お名前を選択";
+    nameSel.appendChild(placeholder);
+    (STORE_STAFF[store] || []).forEach(function (name) {
+      var o = document.createElement("option");
+      o.value = name;
+      o.textContent = name + (isShain(name) ? "（社員）" : "（バイト）");
+      nameSel.appendChild(o);
+    });
+  }
+  render();
+}
+
+// 休憩は労働基準法の最低ライン（6時間超で45分、8時間超で60分）で自動算出する簡易ルール
+function assumedBreakHours(spanHours) {
+  if (spanHours > 8) { return 1; }
+  if (spanHours > 6) { return 0.75; }
+  return 0;
+}
+
+function formatHM(hours) {
+  if (hours === null || isNaN(hours)) { return "-"; }
+  var totalMin = Math.round(hours * 60);
+  var h = Math.floor(totalMin / 60);
+  var m = totalMin % 60;
+  return h + ":" + pad2(m);
+}
+
+function render() {
+  document.getElementById("month-label").textContent = monthLabel(curYear, curMonthIdx);
+
+  var store = document.getElementById("store-select").value;
+  var name = document.getElementById("name-select").value;
+  var body = document.getElementById("detail-body");
+  var emptyNote = document.getElementById("empty-note");
+  body.innerHTML = "";
+
+  document.getElementById("summary-title-1").textContent = monthLabel(curYear, curMonthIdx) + " 出勤状況" + (name ? "（" + name + "）" : "");
+  document.getElementById("summary-title-2").textContent = monthLabel(curYear, curMonthIdx) + " 勤務時間";
+  document.getElementById("summary-title-3").textContent = monthLabel(curYear, curMonthIdx) + " 休日・休暇取得";
+
+  if (!store || !name) {
+    emptyNote.style.display = "block";
+    emptyNote.textContent = "店舗とお名前を選択してください";
+    ["s-work-days", "s-holiday-work-days", "s-absent-days", "s-punch-days", "s-total-hours", "s-actual-hours", "s-regular-hours", "s-overtime-hours", "s-holiday-hours", "s-night-hours", "s-off-days"].forEach(function (id) {
+      document.getElementById(id).textContent = "-";
+    });
+    return;
+  }
+
+  var confirmed = getConfirmed();
+  var record = confirmed[name] || {};
+  var numDays = daysInMonth(curYear, curMonthIdx);
+
+  var totals = { total: 0, actual: 0, regular: 0, overtime: 0, night: 0 };
+  var workDays = 0;
+
+  for (var day = 1; day <= numDays; day++) {
+    var dKey = dateKey(curYear, curMonthIdx, day);
+    var entry = record[dKey];
+    if (!entry || entry.off || !entry.start || !entry.end) { continue; }
+
+    var start = labelToHour(entry.start);
+    var end = labelToHour(entry.end);
+    var span = end - start;
+    var breakHours = assumedBreakHours(span);
+    var actual = Math.max(0, span - breakHours);
+    var regular = Math.min(actual, 8);
+    var overtime = Math.max(0, actual - 8);
+    var night = Math.max(0, Math.min(end, 24) - Math.max(start, 22));
+    var remarks = (dKey === todayKey) ? "本日の実績" : "正常";
+
+    workDays++;
+    totals.total += span;
+    totals.actual += actual;
+    totals.regular += regular;
+    totals.overtime += overtime;
+    totals.night += night;
+
+    var wd = SHIFT_DAYS[jsDayToShiftIndex(new Date(curYear, curMonthIdx, day).getDay())];
+    var tr = document.createElement("tr");
+    tr.innerHTML =
+      "<td>" + (curMonthIdx + 1) + "/" + day + "(" + wd + ")</td>" +
+      "<td>" + entry.start + "</td>" +
+      "<td>" + entry.end + "</td>" +
+      "<td>" + formatHM(breakHours) + "</td>" +
+      "<td>" + formatHM(span) + "</td>" +
+      "<td>" + formatHM(actual) + "</td>" +
+      "<td>" + formatHM(regular) + "</td>" +
+      "<td>" + formatHM(overtime) + "</td>" +
+      "<td>" + formatHM(0) + "</td>" +
+      "<td>" + formatHM(night) + "</td>" +
+      "<td>" + remarks + "</td>";
+    body.appendChild(tr);
+  }
+
+  if (workDays === 0) {
+    emptyNote.style.display = "block";
+    emptyNote.textContent = name + "さんの" + monthLabel(curYear, curMonthIdx) + "の確定シフトがまだありません";
+  } else {
+    emptyNote.style.display = "none";
+  }
+
+  document.getElementById("s-work-days").textContent = workDays + "日";
+  document.getElementById("s-holiday-work-days").textContent = "0日";
+  document.getElementById("s-absent-days").textContent = "-";
+  document.getElementById("s-punch-days").textContent = workDays + "日";
+
+  document.getElementById("s-total-hours").textContent = formatHM(totals.total);
+  document.getElementById("s-actual-hours").textContent = formatHM(totals.actual);
+  document.getElementById("s-regular-hours").textContent = formatHM(totals.regular);
+  document.getElementById("s-overtime-hours").textContent = formatHM(totals.overtime);
+  document.getElementById("s-holiday-hours").textContent = formatHM(0);
+  document.getElementById("s-night-hours").textContent = formatHM(totals.night);
+
+  document.getElementById("s-off-days").textContent = Math.max(0, numDays - workDays) + "日";
+}
+
+render();
+</script>
+</body>
+</html>

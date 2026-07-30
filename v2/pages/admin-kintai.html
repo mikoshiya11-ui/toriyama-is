@@ -7,50 +7,25 @@
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
-<div class="wrap">
-  <img src="../assets/logo.png" alt="鳥やま" class="logo" style="width:64px;margin-bottom:24px;">
-  <span class="demo-tag">テスト版・仮データ</span>
-  <h1 class="page-title">勤怠管理（管理者）</h1>
-  <p class="page-note" style="margin-bottom:16px;">本日の全店舗・全スタッフの状況</p>
+<div class="admin-wrap" style="max-width:640px;">
+  <div class="admin-hero" style="padding-bottom:24px;">
+    <img src="../assets/logo.png" alt="鳥やま" class="admin-hero-logo" style="width:64px;">
+    <p class="admin-hero-title" style="font-size:15px;letter-spacing:2px;">勤怠管理</p>
+    <span class="demo-tag" style="margin-top:12px;">テスト版・仮データ</span>
+  </div>
 
-  <div class="step" style="width:288px;">
-    <div class="store-box">
-      <p class="store-box-title">新安城店</p>
-      <div class="status-row"><span>田中（社員）</span><span class="status-pill working">出勤中 16:55〜</span></div>
-      <div class="status-row"><span>山田</span><span class="status-pill working">出勤中 17:02〜</span></div>
-      <div class="status-row"><span>高橋</span><span class="status-pill pending">未出勤</span></div>
-      <div class="status-row"><span>中島</span><span class="status-pill pending">未出勤</span></div>
-    </div>
+  <div class="icon-grid">
+    <a class="icon-tile" href="admin-kintai-status.html">
+      <div class="icon-tile-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3.5 2"></path></svg></div>
+      <h2>出勤状況</h2>
+      <p class="page-note" style="margin-top:10px;">全店舗・本日の出退勤状況を一覧で見る</p>
+    </a>
 
-    <div class="store-box">
-      <p class="store-box-title">本店</p>
-      <div class="status-row"><span>佐藤（社員）</span><span class="status-pill working">出勤中 16:30〜</span></div>
-      <div class="status-row"><span>鈴木（社員）</span><span class="status-pill done">退勤済 12:00〜17:00</span></div>
-      <div class="status-row"><span>岡本</span><span class="status-pill done">退勤済 16:00〜21:30</span></div>
-      <div class="status-row"><span>松本</span><span class="status-pill pending">未出勤</span></div>
-    </div>
-
-    <div class="store-box">
-      <p class="store-box-title">駅前店</p>
-      <div class="status-row"><span>伊藤（社員）</span><span class="status-pill working">出勤中 17:15〜</span></div>
-      <div class="status-row"><span>木村</span><span class="status-pill working">出勤中 17:20〜</span></div>
-      <div class="status-row"><span>斎藤</span><span class="status-pill pending">未出勤</span></div>
-      <div class="status-row"><span>渡部</span><span class="status-pill pending">未出勤</span></div>
-    </div>
-
-    <div class="store-box">
-      <p class="store-box-title">南店</p>
-      <div class="status-row"><span>加藤（社員）</span><span class="status-pill pending">未出勤</span></div>
-      <div class="status-row"><span>渡辺</span><span class="status-pill working">出勤中 17:10〜</span></div>
-      <div class="status-row"><span>石井</span><span class="status-pill done">退勤済 15:30〜20:00</span></div>
-    </div>
-
-    <div class="store-box">
-      <p class="store-box-title">西店</p>
-      <div class="status-row"><span>中村（社員）</span><span class="status-pill done">退勤済 13:00〜18:00</span></div>
-      <div class="status-row"><span>小林</span><span class="status-pill working">出勤中 17:05〜</span></div>
-      <div class="status-row"><span>森田</span><span class="status-pill pending">未出勤</span></div>
-    </div>
+    <a class="icon-tile" href="admin-kintai-personal.html">
+      <div class="icon-tile-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 4-6 8-6s8 2 8 6"></path></svg></div>
+      <h2>個人の勤怠確認</h2>
+      <p class="page-note" style="margin-top:10px;">スタッフを選んで月次の勤怠実績を確認する</p>
+    </a>
   </div>
 
   <a class="back" href="../admin.html">管理者ダッシュボードへ戻る</a>
