@@ -210,7 +210,7 @@ function render() {
       var legalHoliday = 0; // 法定休日の指定は未対応のため常に0（要・社労士確認）
       var combinedOvertime = legalHoliday > 0 ? legalHoliday : overtime;
       var night = Math.max(0, Math.min(end, 24) - Math.max(start, 22));
-      var remarks = (dKey === todayKey) ? "本日の実績" : "正常";
+      var remarks = "";
 
       workDays++;
       totals.total += span;
@@ -239,7 +239,7 @@ function render() {
         "<td>" + (curMonthIdx + 1) + "/" + day + "(" + wd + ")</td>" +
         "<td>公休</td>" +
         "<td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>" +
-        "<td>-</td>";
+        "<td></td>";
     }
     body.appendChild(tr);
   }
