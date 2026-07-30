@@ -51,7 +51,7 @@
       <table class="result-table wide" id="detail-table">
         <tr>
           <th>日付</th><th>勤務区分</th><th>出勤</th><th>退勤</th><th>休憩</th><th>総労働時間</th>
-          <th>実働時間</th><th>所定内労働</th><th>法定時間外労働</th><th>法定休日労働</th><th>残業時間</th><th>深夜労働</th><th>備考</th>
+          <th>実働時間</th><th>所定内労働</th><th>法定時間外労働</th><th>法定休日労働</th><th>残業時間</th><th>深夜労働</th><th>備考</th><th class="no-print">操作</th>
         </tr>
         <tbody id="detail-body"></tbody>
       </table>
@@ -92,6 +92,33 @@
   <a class="back no-print" href="admin-kintai.html">勤怠管理へ戻る</a>
 </div>
 
+<div class="kintai-edit-overlay no-print" id="edit-overlay" style="display:none;">
+  <div class="kintai-edit-modal">
+    <p class="page-note" id="edit-modal-date" style="font-weight:600;margin-bottom:12px;text-align:center;"></p>
+
+    <p class="page-note" style="text-align:left;margin:0 0 4px;">勤務区分</p>
+    <select class="field" id="edit-kubun" onchange="onEditKubunChange()">
+      <option value="work">出勤</option>
+      <option value="off">公休</option>
+    </select>
+
+    <div id="edit-time-fields">
+      <p class="page-note" style="text-align:left;margin:8px 0 4px;">出勤・退勤</p>
+      <div class="report-row">
+        <select class="field" id="edit-start"></select>
+        <select class="field" id="edit-end"></select>
+      </div>
+    </div>
+
+    <p class="page-note" id="edit-error" style="color:#993556;display:none;margin-top:8px;"></p>
+
+    <div class="nav" style="flex-direction:row;width:auto;gap:8px;margin-top:16px;justify-content:center;">
+      <button class="nav-btn" onclick="closeEditModal()">キャンセル</button>
+      <button class="nav-btn" onclick="saveEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
 <script src="../shift-utils.js"></script>
 <script>
 var confirmedKey = "toriyama_shift_confirmed_month";
@@ -104,6 +131,10 @@ var todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
 function getConfirmed() {
   try { return JSON.parse(localStorage.getItem(confirmedKey) || "{}"); }
   catch (e) { return {}; }
+}
+
+function saveConfirmedData(data) {
+  localStorage.setItem(confirmedKey, JSON.stringify(data));
 }
 
 function changeMonth(delta) {
@@ -233,13 +264,15 @@ function render() {
         "<td>" + formatHM(legalHoliday) + "</td>" +
         "<td>" + formatHM(combinedOvertime) + "</td>" +
         "<td>" + formatHM(night) + "</td>" +
-        "<td>" + remarks + "</td>";
+        "<td>" + remarks + "</td>" +
+        "<td class=\"no-print\"><button type=\"button\" class=\"kintai-row-edit-btn\" data-datekey=\"" + dKey + "\">修正</button></td>";
     } else {
       tr.innerHTML =
         "<td>" + (curMonthIdx + 1) + "/" + day + "(" + wd + ")</td>" +
         "<td>公休</td>" +
         "<td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>" +
-        "<td></td>";
+        "<td></td>" +
+        "<td class=\"no-print\"><button type=\"button\" class=\"kintai-row-edit-btn\" data-datekey=\"" + dKey + "\">修正</button></td>";
     }
     body.appendChild(tr);
   }
@@ -267,6 +300,100 @@ function render() {
   document.getElementById("s-off-days").textContent = Math.max(0, numDays - workDays) + "日";
 }
 
+// ============================================================
+// 個人の勤怠確認：管理者が打ち間違い等を直接修正するための編集モーダル
+// ============================================================
+var editingDateKey = null;
+
+var TIME_OPTIONS = [];
+(function buildTimeOptions() {
+  for (var h = 9; h <= 24; h += 0.5) {
+    TIME_OPTIONS.push(hourToLabel(h));
+  }
+})();
+
+function fillTimeSelect(sel, selected) {
+  sel.innerHTML = "";
+  TIME_OPTIONS.forEach(function (label) {
+    var opt = document.createElement("option");
+    opt.value = label;
+    opt.textContent = label;
+    if (label === selected) { opt.selected = true; }
+    sel.appendChild(opt);
+  });
+}
+
+function openEditModal(dKey) {
+  var name = document.getElementById("name-select").value;
+  var store = document.getElementById("store-select").value;
+  if (!store || !name) { return; }
+
+  editingDateKey = dKey;
+
+  var confirmed = getConfirmed();
+  var entry = (confirmed[name] && confirmed[name][dKey]) || null;
+  var isWork = !!(entry && !entry.off && entry.start && entry.end);
+
+  var parts = dKey.split("-");
+  var d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  var wd = SHIFT_DAYS[jsDayToShiftIndex(d.getDay())];
+  document.getElementById("edit-modal-date").textContent = name + "さん　" + Number(parts[1]) + "/" + Number(parts[2]) + "(" + wd + ")";
+
+  document.getElementById("edit-kubun").value = isWork ? "work" : "off";
+
+  var startSel = document.getElementById("edit-start");
+  var endSel = document.getElementById("edit-end");
+  fillTimeSelect(startSel, isWork ? entry.start : "17:00");
+  fillTimeSelect(endSel, isWork ? entry.end : "22:00");
+
+  onEditKubunChange();
+  document.getElementById("edit-error").style.display = "none";
+  document.getElementById("edit-overlay").style.display = "flex";
+}
+
+function onEditKubunChange() {
+  var kubun = document.getElementById("edit-kubun").value;
+  document.getElementById("edit-time-fields").style.display = (kubun === "work") ? "block" : "none";
+}
+
+function closeEditModal() {
+  editingDateKey = null;
+  document.getElementById("edit-overlay").style.display = "none";
+}
+
+function saveEdit() {
+  if (!editingDateKey) { return; }
+  var name = document.getElementById("name-select").value;
+  var kubun = document.getElementById("edit-kubun").value;
+  var errorEl = document.getElementById("edit-error");
+
+  var confirmed = getConfirmed();
+  if (!confirmed[name]) { confirmed[name] = {}; }
+
+  if (kubun === "off") {
+    confirmed[name][editingDateKey] = { off: true };
+  } else {
+    var start = document.getElementById("edit-start").value;
+    var end = document.getElementById("edit-end").value;
+    if (labelToHour(end) <= labelToHour(start)) {
+      errorEl.textContent = "退勤は出勤より後の時刻を選んでください";
+      errorEl.style.display = "block";
+      return;
+    }
+    confirmed[name][editingDateKey] = { off: false, start: start, end: end };
+  }
+
+  saveConfirmedData(confirmed);
+  closeEditModal();
+  render();
+}
+
+document.getElementById("detail-body").addEventListener("click", function (e) {
+  var btn = e.target.closest(".kintai-row-edit-btn");
+  if (!btn) { return; }
+  openEditModal(btn.dataset.datekey);
+});
+
 function csvEscape(v) {
   return '"' + String(v).replace(/"/g, '""') + '"';
 }
@@ -285,6 +412,7 @@ function exportCSV() {
 
   document.querySelectorAll("#detail-body tr").forEach(function (tr) {
     var cells = [].slice.call(tr.children).map(function (td) { return td.textContent; });
+    cells.pop(); // 「操作」列（修正ボタン）はCSVに含めない
     rows.push(cells);
   });
 
