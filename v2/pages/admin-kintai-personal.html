@@ -44,14 +44,14 @@
     <p class="page-note" id="print-heading" style="text-align:center;margin-bottom:8px;display:none;"></p>
 
     <p class="page-note" id="calc-note" style="text-align:center;margin-bottom:16px;">
-      確定シフトの時刻をもとにした簡易計算です。休憩は労働時間に応じた法定最低ラインで自動算出。法定休日の区分・有給/振替休日の残数は未実装（別途運用でご確認ください）。
+      確定シフトの時刻をもとにした簡易計算です。休憩は労働時間に応じた法定最低ラインで自動算出。勤務区分は現状「出勤」「公休」のみ自動判定で、振休・有休・法定(外)休日出勤・欠勤・代休の区分や法定休日の指定・有給/振替休日の残数は未実装（別途運用でご確認ください）。
     </p>
 
     <div class="table-scroll">
       <table class="result-table wide" id="detail-table">
         <tr>
-          <th>日付</th><th>出勤</th><th>退勤</th><th>休憩</th><th>総労働時間</th>
-          <th>実働時間</th><th>所定内労働</th><th>法定時間外労働</th><th>法定休日労働</th><th>深夜労働</th><th>備考</th>
+          <th>日付</th><th>勤務区分</th><th>出勤</th><th>退勤</th><th>休憩</th><th>総労働時間</th>
+          <th>実働時間</th><th>所定内労働</th><th>法定時間外労働</th><th>法定休日労働</th><th>残業時間</th><th>深夜労働</th><th>備考</th>
         </tr>
         <tbody id="detail-body"></tbody>
       </table>
@@ -189,49 +189,63 @@ function render() {
   var record = confirmed[name] || {};
   var numDays = daysInMonth(curYear, curMonthIdx);
 
-  var totals = { total: 0, actual: 0, regular: 0, overtime: 0, night: 0 };
+  var totals = { total: 0, actual: 0, regular: 0, overtime: 0, combinedOvertime: 0, night: 0 };
   var workDays = 0;
 
   for (var day = 1; day <= numDays; day++) {
     var dKey = dateKey(curYear, curMonthIdx, day);
     var entry = record[dKey];
-    if (!entry || entry.off || !entry.start || !entry.end) { continue; }
-
-    var start = labelToHour(entry.start);
-    var end = labelToHour(entry.end);
-    var span = end - start;
-    var breakHours = assumedBreakHours(span);
-    var actual = Math.max(0, span - breakHours);
-    var regular = Math.min(actual, 8);
-    var overtime = Math.max(0, actual - 8);
-    var night = Math.max(0, Math.min(end, 24) - Math.max(start, 22));
-    var remarks = (dKey === todayKey) ? "本日の実績" : "正常";
-
-    workDays++;
-    totals.total += span;
-    totals.actual += actual;
-    totals.regular += regular;
-    totals.overtime += overtime;
-    totals.night += night;
-
+    var isWork = !!(entry && !entry.off && entry.start && entry.end);
     var wd = SHIFT_DAYS[jsDayToShiftIndex(new Date(curYear, curMonthIdx, day).getDay())];
     var tr = document.createElement("tr");
-    tr.innerHTML =
-      "<td>" + (curMonthIdx + 1) + "/" + day + "(" + wd + ")</td>" +
-      "<td>" + entry.start + "</td>" +
-      "<td>" + entry.end + "</td>" +
-      "<td>" + formatHM(breakHours) + "</td>" +
-      "<td>" + formatHM(span) + "</td>" +
-      "<td>" + formatHM(actual) + "</td>" +
-      "<td>" + formatHM(regular) + "</td>" +
-      "<td>" + formatHM(overtime) + "</td>" +
-      "<td>" + formatHM(0) + "</td>" +
-      "<td>" + formatHM(night) + "</td>" +
-      "<td>" + remarks + "</td>";
+
+    if (isWork) {
+      var start = labelToHour(entry.start);
+      var end = labelToHour(entry.end);
+      var span = end - start;
+      var breakHours = assumedBreakHours(span);
+      var actual = Math.max(0, span - breakHours);
+      var regular = Math.min(actual, 8);
+      var overtime = Math.max(0, actual - 8);
+      var legalHoliday = 0; // 法定休日の指定は未対応のため常に0（要・社労士確認）
+      var combinedOvertime = legalHoliday > 0 ? legalHoliday : overtime;
+      var night = Math.max(0, Math.min(end, 24) - Math.max(start, 22));
+      var remarks = (dKey === todayKey) ? "本日の実績" : "正常";
+
+      workDays++;
+      totals.total += span;
+      totals.actual += actual;
+      totals.regular += regular;
+      totals.overtime += overtime;
+      totals.combinedOvertime += combinedOvertime;
+      totals.night += night;
+
+      tr.innerHTML =
+        "<td>" + (curMonthIdx + 1) + "/" + day + "(" + wd + ")</td>" +
+        "<td>出勤</td>" +
+        "<td>" + entry.start + "</td>" +
+        "<td>" + entry.end + "</td>" +
+        "<td>" + formatHM(breakHours) + "</td>" +
+        "<td>" + formatHM(span) + "</td>" +
+        "<td>" + formatHM(actual) + "</td>" +
+        "<td>" + formatHM(regular) + "</td>" +
+        "<td>" + formatHM(overtime) + "</td>" +
+        "<td>" + formatHM(legalHoliday) + "</td>" +
+        "<td>" + formatHM(combinedOvertime) + "</td>" +
+        "<td>" + formatHM(night) + "</td>" +
+        "<td>" + remarks + "</td>";
+    } else {
+      tr.innerHTML =
+        "<td>" + (curMonthIdx + 1) + "/" + day + "(" + wd + ")</td>" +
+        "<td>公休</td>" +
+        "<td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>" +
+        "<td>-</td>";
+    }
     body.appendChild(tr);
   }
 
   if (workDays === 0) {
+    body.innerHTML = "";
     emptyNote.style.display = "block";
     emptyNote.textContent = name + "さんの" + monthLabel(curYear, curMonthIdx) + "の確定シフトがまだありません";
   } else {
@@ -246,7 +260,7 @@ function render() {
   document.getElementById("s-total-hours").textContent = formatHM(totals.total);
   document.getElementById("s-actual-hours").textContent = formatHM(totals.actual);
   document.getElementById("s-regular-hours").textContent = formatHM(totals.regular);
-  document.getElementById("s-overtime-hours").textContent = formatHM(totals.overtime);
+  document.getElementById("s-overtime-hours").textContent = formatHM(totals.combinedOvertime);
   document.getElementById("s-holiday-hours").textContent = formatHM(0);
   document.getElementById("s-night-hours").textContent = formatHM(totals.night);
 
@@ -267,7 +281,7 @@ function exportCSV() {
   rows.push(["氏名", name]);
   rows.push(["対象月", monthLabel(curYear, curMonthIdx)]);
   rows.push([]);
-  rows.push(["日付", "出勤", "退勤", "休憩", "総労働時間", "実働時間", "所定内労働", "法定時間外労働", "法定休日労働", "深夜労働", "備考"]);
+  rows.push(["日付", "勤務区分", "出勤", "退勤", "休憩", "総労働時間", "実働時間", "所定内労働", "法定時間外労働", "法定休日労働", "残業時間", "深夜労働", "備考"]);
 
   document.querySelectorAll("#detail-body tr").forEach(function (tr) {
     var cells = [].slice.call(tr.children).map(function (td) { return td.textContent; });
