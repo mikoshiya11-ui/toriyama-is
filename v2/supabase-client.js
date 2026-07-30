@@ -24,8 +24,8 @@
     Supabase Auth（またはEdge Functions経由の検証）でcompany_idをサーバー側の
     検証済みクレームから取るポリシーに必ず差し替えること（schema.sql末尾にひな形あり）。
 */
-var SUPABASE_URL = "";
-var SUPABASE_ANON_KEY = "";
+var SUPABASE_URL = "https://qzsxscyvidihltvfzouc.supabase.co";
+var SUPABASE_ANON_KEY = "sb_publishable_M1Jq2Fmql_3YQ7d0d9rxGw_Eslf7URO";
 var COMPANY_CODE = "toriyama";
 
 var TORIYAMA_DB = (function () {

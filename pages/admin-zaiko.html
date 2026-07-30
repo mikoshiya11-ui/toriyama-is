@@ -9,100 +9,56 @@
 <body>
 <div class="wrap">
   <img src="../assets/logo.png" alt="鳥やま" class="logo" style="width:64px;margin-bottom:24px;">
-  <span class="demo-tag">テスト版・仮データ</span>
+  <span class="demo-tag" id="data-tag">テスト版・仮データ</span>
   <h1 class="page-title">在庫管理（管理者）</h1>
   <p class="page-note" style="margin-bottom:8px;">全店舗の在庫状況（新安城店・仮データ）</p>
 
-  <div class="step" style="width:288px;">
-    <p class="stock-cat">食材</p>
-
-    <div class="stock-row">
-      <div class="stock-top"><span>鶏もも肉</span><span class="stock-qty">3.2kg</span></div>
-      <div class="stock-bottom">
-        <select class="stock-select" data-stock><option>要発注</option><option selected>やや少</option><option>十分</option></select>
-        <button class="order-btn" onclick="orderItem(this)">発注</button>
-      </div>
-    </div>
-
-    <div class="stock-row">
-      <div class="stock-top"><span>鶏むね肉</span><span class="stock-qty">8.0kg</span></div>
-      <div class="stock-bottom">
-        <select class="stock-select" data-stock><option>要発注</option><option>やや少</option><option selected>十分</option></select>
-        <button class="order-btn" onclick="orderItem(this)">発注</button>
-      </div>
-    </div>
-
-    <div class="stock-row">
-      <div class="stock-top"><span>手羽先</span><span class="stock-qty">1.1kg</span></div>
-      <div class="stock-bottom">
-        <select class="stock-select" data-stock><option selected>要発注</option><option>やや少</option><option>十分</option></select>
-        <button class="order-btn" onclick="orderItem(this)">発注</button>
-      </div>
-    </div>
-
-    <div class="stock-row">
-      <div class="stock-top"><span>炭</span><span class="stock-qty">12kg</span></div>
-      <div class="stock-bottom">
-        <select class="stock-select" data-stock><option>要発注</option><option>やや少</option><option selected>十分</option></select>
-        <button class="order-btn" onclick="orderItem(this)">発注</button>
-      </div>
-    </div>
-
-    <p class="stock-cat">ドリンク</p>
-
-    <div class="stock-row">
-      <div class="stock-top"><span>生ビール（樽）</span><span class="stock-qty">2樽</span></div>
-      <div class="stock-bottom">
-        <select class="stock-select" data-stock><option>要発注</option><option>やや少</option><option selected>十分</option></select>
-        <button class="order-btn" onclick="orderItem(this)">発注</button>
-      </div>
-    </div>
-
-    <div class="stock-row">
-      <div class="stock-top"><span>日本酒</span><span class="stock-qty">4本</span></div>
-      <div class="stock-bottom">
-        <select class="stock-select" data-stock><option>要発注</option><option selected>やや少</option><option>十分</option></select>
-        <button class="order-btn" onclick="orderItem(this)">発注</button>
-      </div>
-    </div>
-
-    <p class="stock-cat">消耗品</p>
-
-    <div class="stock-row">
-      <div class="stock-top"><span>おしぼり</span><span class="stock-qty">60枚</span></div>
-      <div class="stock-bottom">
-        <select class="stock-select" data-stock><option>要発注</option><option>やや少</option><option selected>十分</option></select>
-        <button class="order-btn" onclick="orderItem(this)">発注</button>
-      </div>
-    </div>
-
-    <div class="stock-row">
-      <div class="stock-top"><span>割り箸</span><span class="stock-qty">15膳</span></div>
-      <div class="stock-bottom">
-        <select class="stock-select" data-stock><option selected>要発注</option><option>やや少</option><option>十分</option></select>
-        <button class="order-btn" onclick="orderItem(this)">発注</button>
-      </div>
-    </div>
-
-    <button class="nav-btn" style="width:100%;margin-top:20px;" onclick="saveStock()">この内容で更新する</button>
-    <p class="confirm-msg" id="confirm-msg" style="display:none;">更新しました（テスト表示）</p>
+  <div class="step" id="stock-area" style="width:288px;">
+    <p class="page-note">読み込み中...</p>
   </div>
 
   <a class="back" href="../admin.html">管理者ダッシュボードへ戻る</a>
 </div>
 
 <script>
+/*
+  在庫データの取得元を設定する場所。
+  Googleスプレッドシートを「ファイル→共有→ウェブに公開→CSV」で発行したURLをここに貼ると、
+  そのシートの内容が自動でこのページに反映されます。
+  列の順番：カテゴリ, 品目, 数量, 状態（要発注／やや少／十分）
+  空のままなら、下の仮データがそのまま表示されます。
+*/
+var SHEET_CSV_URL = "";
+
+var fallbackData = [
+  { cat: "食材", name: "鶏もも肉", qty: "3.2kg", status: "やや少" },
+  { cat: "食材", name: "鶏むね肉", qty: "8.0kg", status: "十分" },
+  { cat: "食材", name: "手羽先", qty: "1.1kg", status: "要発注" },
+  { cat: "食材", name: "炭", qty: "12kg", status: "十分" },
+  { cat: "ドリンク", name: "生ビール（樽）", qty: "2樽", status: "十分" },
+  { cat: "ドリンク", name: "日本酒", qty: "4本", status: "やや少" },
+  { cat: "消耗品", name: "おしぼり", qty: "60枚", status: "十分" },
+  { cat: "消耗品", name: "割り箸", qty: "15膳", status: "要発注" }
+];
+
+function parseCSV(text) {
+  var lines = text.trim().split(/\r?\n/);
+  var rows = [];
+  for (var i = 1; i < lines.length; i++) {
+    if (!lines[i]) { continue; }
+    var cells = lines[i].split(",").map(function (c) { return c.replace(/^"|"$/g, "").trim(); });
+    if (cells.length >= 4) {
+      rows.push({ cat: cells[0], name: cells[1], qty: cells[2], status: cells[3] });
+    }
+  }
+  return rows;
+}
+
 function colorSelect(el) {
   var v = el.value;
   if (v === "要発注") { el.style.color = "#993556"; }
   else if (v === "やや少") { el.style.color = "#854f0b"; }
   else { el.style.color = "#3b6d11"; }
-}
-
-var selects = document.querySelectorAll("[data-stock]");
-for (var i = 0; i < selects.length; i++) {
-  colorSelect(selects[i]);
-  selects[i].addEventListener("change", function () { colorSelect(this); });
 }
 
 function orderItem(btn) {
@@ -112,6 +68,84 @@ function orderItem(btn) {
 
 function saveStock() {
   document.getElementById("confirm-msg").style.display = "block";
+}
+
+function renderStock(items) {
+  var area = document.getElementById("stock-area");
+  area.innerHTML = "";
+  var currentCat = null;
+
+  items.forEach(function (item) {
+    if (item.cat !== currentCat) {
+      currentCat = item.cat;
+      var catEl = document.createElement("p");
+      catEl.className = "stock-cat";
+      catEl.textContent = currentCat;
+      area.appendChild(catEl);
+    }
+
+    var row = document.createElement("div");
+    row.className = "stock-row";
+
+    var top = document.createElement("div");
+    top.className = "stock-top";
+    top.innerHTML = "<span>" + item.name + "</span><span class=\"stock-qty\">" + item.qty + "</span>";
+
+    var bottom = document.createElement("div");
+    bottom.className = "stock-bottom";
+
+    var select = document.createElement("select");
+    select.className = "stock-select";
+    ["要発注", "やや少", "十分"].forEach(function (opt) {
+      var o = document.createElement("option");
+      o.textContent = opt;
+      if (opt === item.status) { o.selected = true; }
+      select.appendChild(o);
+    });
+    select.addEventListener("change", function () { colorSelect(this); });
+
+    var btn = document.createElement("button");
+    btn.className = "order-btn";
+    btn.textContent = "発注";
+    btn.onclick = function () { orderItem(this); };
+
+    bottom.appendChild(select);
+    bottom.appendChild(btn);
+    row.appendChild(top);
+    row.appendChild(bottom);
+    area.appendChild(row);
+
+    colorSelect(select);
+  });
+
+  var saveBtn = document.createElement("button");
+  saveBtn.className = "nav-btn";
+  saveBtn.style.cssText = "width:100%;margin-top:20px;";
+  saveBtn.textContent = "この内容で更新する";
+  saveBtn.onclick = saveStock;
+  area.appendChild(saveBtn);
+
+  var msg = document.createElement("p");
+  msg.className = "confirm-msg";
+  msg.id = "confirm-msg";
+  msg.style.display = "none";
+  msg.textContent = "更新しました（テスト表示）";
+  area.appendChild(msg);
+}
+
+if (SHEET_CSV_URL) {
+  fetch(SHEET_CSV_URL)
+    .then(function (res) { return res.text(); })
+    .then(function (text) {
+      var data = parseCSV(text);
+      document.getElementById("data-tag").textContent = "スプレッドシート連携";
+      renderStock(data.length ? data : fallbackData);
+    })
+    .catch(function () {
+      renderStock(fallbackData);
+    });
+} else {
+  renderStock(fallbackData);
 }
 </script>
 </body>
