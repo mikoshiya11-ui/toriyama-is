@@ -11,51 +11,61 @@
   <div class="admin-hero" style="padding-bottom:16px;">
     <img src="../assets/logo.png" alt="鳥やま" class="admin-hero-logo" style="width:64px;">
     <p class="admin-hero-title" style="font-size:15px;letter-spacing:2px;">出勤状況</p>
-    <span class="demo-tag" style="margin-top:12px;">テスト版・仮データ</span>
   </div>
-  <p class="page-note" style="margin-bottom:16px;text-align:center;">本日の全店舗・全スタッフの状況</p>
+  <p class="page-note" style="margin-bottom:8px;text-align:center;">本日の全店舗・全スタッフの状況</p>
+  <p class="page-note" style="margin-bottom:16px;text-align:center;">※本日の出退勤状況（出勤中／退勤済）は打刻データとの連携が未対応のため、現在は登録スタッフの一覧のみ表示しています</p>
 
-  <div class="store-box-grid">
-    <div class="store-box">
-      <p class="store-box-title">餃子酒場さんちょうめ</p>
-      <div class="status-row"><span>田中（社員）</span><span class="status-pill working">出勤中 16:55〜</span></div>
-      <div class="status-row"><span>山田</span><span class="status-pill working">出勤中 17:02〜</span></div>
-      <div class="status-row"><span>高橋</span><span class="status-pill pending">未出勤</span></div>
-      <div class="status-row"><span>中島</span><span class="status-pill pending">未出勤</span></div>
-    </div>
-
-    <div class="store-box">
-      <p class="store-box-title">鳥料理と炭火焼 鶏やま</p>
-      <div class="status-row"><span>佐藤（社員）</span><span class="status-pill working">出勤中 16:30〜</span></div>
-      <div class="status-row"><span>鈴木（社員）</span><span class="status-pill done">退勤済 12:00〜17:00</span></div>
-      <div class="status-row"><span>岡本</span><span class="status-pill done">退勤済 16:00〜21:30</span></div>
-      <div class="status-row"><span>松本</span><span class="status-pill pending">未出勤</span></div>
-    </div>
-
-    <div class="store-box">
-      <p class="store-box-title">Tripot cafe BAKE stand</p>
-      <div class="status-row"><span>伊藤（社員）</span><span class="status-pill working">出勤中 17:15〜</span></div>
-      <div class="status-row"><span>木村</span><span class="status-pill working">出勤中 17:20〜</span></div>
-      <div class="status-row"><span>斎藤</span><span class="status-pill pending">未出勤</span></div>
-      <div class="status-row"><span>渡部</span><span class="status-pill pending">未出勤</span></div>
-    </div>
-
-    <div class="store-box">
-      <p class="store-box-title">Tripot cafe FOOD truck ①</p>
-      <div class="status-row"><span>加藤（社員）</span><span class="status-pill pending">未出勤</span></div>
-      <div class="status-row"><span>渡辺</span><span class="status-pill working">出勤中 17:10〜</span></div>
-      <div class="status-row"><span>石井</span><span class="status-pill done">退勤済 15:30〜20:00</span></div>
-    </div>
-
-    <div class="store-box">
-      <p class="store-box-title">Tripot cafe FOOD truck ②</p>
-      <div class="status-row"><span>中村（社員）</span><span class="status-pill done">退勤済 13:00〜18:00</span></div>
-      <div class="status-row"><span>小林</span><span class="status-pill working">出勤中 17:05〜</span></div>
-      <div class="status-row"><span>森田</span><span class="status-pill pending">未出勤</span></div>
-    </div>
-  </div>
+  <div class="store-box-grid" id="status-grid"></div>
 
   <a class="back" href="admin-kintai.html">勤怠管理へ戻る</a>
 </div>
+
+<script src="../shift-utils.js"></script>
+<script src="../staff-utils.js"></script>
+<script>
+function employmentSuffix(person) {
+  return person.employmentType === "shain" ? "（社員）" : "";
+}
+
+function render() {
+  var grid = document.getElementById("status-grid");
+  grid.innerHTML = "";
+  var roster = getStaffRoster();
+
+  STORE_LIST.forEach(function (store) {
+    var box = document.createElement("div");
+    box.className = "store-box";
+
+    var title = document.createElement("p");
+    title.className = "store-box-title";
+    title.textContent = store;
+    box.appendChild(title);
+
+    var staff = roster.filter(function (p) { return p.store === store; });
+    var shain = staff.filter(function (p) { return p.employmentType === "shain"; });
+    var baito = staff.filter(function (p) { return p.employmentType !== "shain"; });
+    var ordered = shain.concat(baito);
+
+    if (!ordered.length) {
+      var empty = document.createElement("p");
+      empty.className = "page-note";
+      empty.style.textAlign = "left";
+      empty.textContent = "登録されたスタッフがいません";
+      box.appendChild(empty);
+    } else {
+      ordered.forEach(function (person) {
+        var row = document.createElement("div");
+        row.className = "status-row";
+        row.innerHTML = "<span>" + person.name + employmentSuffix(person) + "</span><span class=\"status-pill pending\">未出勤</span>";
+        box.appendChild(row);
+      });
+    }
+
+    grid.appendChild(box);
+  });
+}
+
+render();
+</script>
 </body>
 </html>
