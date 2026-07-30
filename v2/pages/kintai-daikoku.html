@@ -12,7 +12,7 @@
   <span class="demo-tag" id="mode-tag">テスト版</span>
   <p class="page-note" id="conn-status" style="margin-bottom:8px;"></p>
   <h1 class="page-title">打刻</h1>
-  <p class="page-note" style="margin-bottom:16px;">お名前を選んで、出勤・退勤ボタンを押してください</p>
+  <p class="page-note" style="margin-bottom:16px;">お名前を選んで、出勤・退勤・休憩のボタンを押してください</p>
 
   <div class="step" style="width:288px;">
     <select class="field" id="punch-name">
@@ -20,8 +20,14 @@
     </select>
 
     <div class="punch-btn-row">
-      <button type="button" class="punch-btn punch-in" id="btn-in" onclick="doPunch('in')" disabled>出勤</button>
-      <button type="button" class="punch-btn punch-out" id="btn-out" onclick="doPunch('out')" disabled>退勤</button>
+      <div class="punch-btn-col">
+        <button type="button" class="punch-btn punch-in" id="btn-in" onclick="doPunch('in')" disabled>出勤</button>
+        <button type="button" class="punch-btn-half punch-break-start" id="btn-break-start" onclick="doPunch('break_start')" disabled>休憩</button>
+      </div>
+      <div class="punch-btn-col">
+        <button type="button" class="punch-btn punch-out" id="btn-out" onclick="doPunch('out')" disabled>退勤</button>
+        <button type="button" class="punch-btn-half punch-break-end" id="btn-break-end" onclick="doPunch('break_end')" disabled>休憩戻り</button>
+      </div>
     </div>
 
     <div id="result-area" class="card-result" style="display:none;">
@@ -108,13 +114,17 @@ function showResult(name, typeLabel, queued) {
 function setButtonsEnabled(enabled) {
   document.getElementById("btn-in").disabled = !enabled;
   document.getElementById("btn-out").disabled = !enabled;
+  document.getElementById("btn-break-start").disabled = !enabled;
+  document.getElementById("btn-break-end").disabled = !enabled;
 }
+
+var PUNCH_TYPE_LABELS = { in: "出勤", out: "退勤", break_start: "休憩", break_end: "休憩戻り" };
 
 // ============================================================
 // モードA: Supabase未設定 → 従来どおりlocalStorageのみの簡易デモ
 // ============================================================
 function legacyPunch(name, type) {
-  var typeLabel = (type === "in") ? "出勤" : "退勤";
+  var typeLabel = PUNCH_TYPE_LABELS[type] || type;
   var log = getJSON(localLogKey, []);
   log.push({ name: name, type: typeLabel, time: timeNow() });
   setJSON(localLogKey, log);
@@ -173,7 +183,7 @@ function updateConnStatus() {
 }
 
 async function cloudPunch(name, type) {
-  var typeLabel = (type === "in") ? "出勤" : "退勤";
+  var typeLabel = PUNCH_TYPE_LABELS[type] || type;
   var nowIso = new Date().toISOString();
 
   var employee = await resolveEmployee(name);

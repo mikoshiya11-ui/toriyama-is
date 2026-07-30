@@ -102,7 +102,7 @@ create table if not exists punches (
   company_id   uuid not null references companies(id) on delete cascade,
   employee_id  uuid not null references employees(id),
   store_id     uuid not null references stores(id),
-  type         text not null check (type in ('in', 'out')),
+  type         text not null check (type in ('in', 'out', 'break_start', 'break_end')),
   punched_at   timestamptz not null,   -- 実際に打刻された時刻（オフライン時は端末側の時刻）
   synced_at    timestamptz not null default now(), -- サーバーに届いた時刻
   source       text not null default 'card' check (source in ('card', 'offline_queue')),
