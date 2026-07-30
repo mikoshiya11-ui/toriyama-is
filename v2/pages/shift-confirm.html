@@ -53,11 +53,6 @@ var base = new Date(today.getFullYear(), today.getMonth() + 1, 1); // admin-shif
 var curYear = base.getFullYear();
 var curMonthIdx = base.getMonth();
 
-// 管理者側でまだ何も確定していない場合のフォールバック仮データ（山田さん・曜日パターン）
-var fallbackPattern = {
-  "山田": { "月": { start: "17:00", end: "22:00" }, "水": { start: "17:00", end: "22:00" }, "金": { start: "17:00", end: "23:00" }, "土": { start: "16:00", end: "23:00" } }
-};
-
 function getConfirmed() {
   try { return JSON.parse(localStorage.getItem(confirmedKey) || "{}"); }
   catch (e) { return {}; }
@@ -111,12 +106,12 @@ function render() {
   var hasMonthData = Object.keys(record).some(function (k) { return k.indexOf(mKey) === 0; });
   var numDays = daysInMonth(curYear, curMonthIdx);
 
-  if (!hasMonthData && !fallbackPattern[name]) {
+  if (!hasMonthData) {
     title.textContent = name + "さんの" + monthLabel(curYear, curMonthIdx) + "の確定シフトはまだありません";
     return;
   }
 
-  title.textContent = name + "さんの" + monthLabel(curYear, curMonthIdx) + "のシフト" + (hasMonthData ? "" : "（仮データ）");
+  title.textContent = name + "さんの" + monthLabel(curYear, curMonthIdx) + "のシフト";
 
   for (var day = 1; day <= numDays; day++) {
     var d = new Date(curYear, curMonthIdx, day);
@@ -124,14 +119,8 @@ function render() {
     var dKey = dateKey(curYear, curMonthIdx, day);
     var start = "", end = "", off = true;
 
-    if (hasMonthData) {
-      var entry = record[dKey];
-      if (entry && !entry.off) { start = entry.start; end = entry.end; off = false; }
-    } else if (fallbackPattern[name] && fallbackPattern[name][wd]) {
-      start = fallbackPattern[name][wd].start;
-      end = fallbackPattern[name][wd].end;
-      off = false;
-    }
+    var entry = record[dKey];
+    if (entry && !entry.off) { start = entry.start; end = entry.end; off = false; }
 
     var tr = document.createElement("tr");
     tr.innerHTML = "<td>" + (curMonthIdx + 1) + "/" + day + "(" + wd + ")</td><td>" + (off ? "―" : start) + "</td><td>" + (off ? "―" : end) + "</td>";
