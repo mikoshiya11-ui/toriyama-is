@@ -11,7 +11,7 @@
   <img src="../assets/logo.png" alt="鳥やま" class="logo" style="width:64px;margin-bottom:24px;">
   <span class="demo-tag">テスト版・仮データ</span>
   <h1 class="page-title">掲示板</h1>
-  <p class="page-note" style="margin-bottom:16px;">勤務店舗：新安城店（仮設定）</p>
+  <p class="page-note" style="margin-bottom:16px;">勤務店舗：餃子酒場さんちょうめ（仮設定）</p>
 
   <div class="filter-tabs" style="width:288px;">
     <button class="filter-tab active" id="tab-all" onclick="setFilter('all')">会社全体</button>
@@ -20,9 +20,9 @@
 
   <div class="step post-form" style="width:288px;">
     <select class="field" id="post-store">
-      <option>新安城店</option>
-      <option>本店</option>
-      <option>駅前店</option>
+      <option>餃子酒場さんちょうめ</option>
+      <option>鳥料理と炭火焼 鶏やま</option>
+      <option>Tripot cafe BAKE stand</option>
     </select>
     <textarea class="field" id="post-body" placeholder="お知らせ内容を入力"></textarea>
     <input class="field" id="post-image" type="file" accept="image/*" style="padding:8px;">
@@ -35,13 +35,13 @@
 </div>
 
 <script>
-var myStore = "新安城店";
+var myStore = "餃子酒場さんちょうめ";
 var filterMode = "all";
 var totalStaff = 6;
 var posts = [
-  { store: "本店", time: "14:20", body: "明日の仕込み一部前倒しします。", read: 4 },
-  { store: "駅前店", time: "11:05", body: "新人研修の日程共有です。来週火曜17時からお願いします。", read: 6 },
-  { store: "新安城店", time: "昨日", body: "土曜のイベント用に炭を多めに用意してください。", read: 5 }
+  { store: "鳥料理と炭火焼 鶏やま", time: "14:20", body: "明日の仕込み一部前倒しします。", read: 4 },
+  { store: "Tripot cafe BAKE stand", time: "11:05", body: "新人研修の日程共有です。来週火曜17時からお願いします。", read: 6 },
+  { store: "餃子酒場さんちょうめ", time: "昨日", body: "土曜のイベント用に炭を多めに用意してください。", read: 5 }
 ];
 
 function setFilter(mode) {

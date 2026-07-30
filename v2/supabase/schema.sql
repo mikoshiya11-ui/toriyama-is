@@ -43,8 +43,8 @@ create table if not exists companies (
 create table if not exists stores (
   id           uuid primary key default gen_random_uuid(),
   company_id   uuid not null references companies(id) on delete cascade,
-  name         text not null,          -- 例: 新安城店
-  code         text not null,          -- 例: shinanjo（会社内で一意）
+  name         text not null,          -- 例: 餃子酒場さんちょうめ
+  code         text not null,          -- 例: sanchome（会社内で一意）
   created_at   timestamptz not null default now(),
   unique (company_id, code)
 );
@@ -244,11 +244,11 @@ insert into stores (company_id, name, code)
 select c.id, s.name, s.code
 from companies c
 cross join (values
-  ('新安城店', 'shinanjo'),
-  ('本店', 'honten'),
-  ('駅前店', 'ekimae'),
-  ('南店', 'minami'),
-  ('西店', 'nishi')
+  ('餃子酒場さんちょうめ', 'sanchome'),
+  ('鳥料理と炭火焼 鶏やま', 'keiyama'),
+  ('Tripot cafe BAKE stand', 'tripot-bake'),
+  ('Tripot cafe FOOD truck ①', 'tripot-truck1'),
+  ('Tripot cafe FOOD truck ②', 'tripot-truck2')
 ) as s(name, code)
 where c.code = 'toriyama'
 on conflict (company_id, code) do nothing;

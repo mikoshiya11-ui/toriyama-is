@@ -15,11 +15,11 @@
 
   <div class="step" style="width:288px;">
     <select class="field" id="store" onchange="updatePreview()">
-      <option>新安城店</option>
-      <option>本店</option>
-      <option>駅前店</option>
-      <option>南店</option>
-      <option>西店</option>
+      <option>餃子酒場さんちょうめ</option>
+      <option>鳥料理と炭火焼 鶏やま</option>
+      <option>Tripot cafe BAKE stand</option>
+      <option>Tripot cafe FOOD truck ①</option>
+      <option>Tripot cafe FOOD truck ②</option>
     </select>
     <div class="date-field-wrap">
       <input class="field" id="date" type="date" onchange="updateWeekday();updatePreview();">
@@ -77,9 +77,9 @@ var confirmedKey = "toriyama_shift_confirmed_month";
 
 // 初回のみ：過去の仮データをシード（既に保存済みならそちらを優先）
 var fallbackReports = [
-  { store: "新安城店", date: "2026-07-23", sales: 182400, guests: 64, note: "", targetRate: null, cumulativeProfit: null, weather: "" },
-  { store: "本店", date: "2026-07-24", sales: 215900, guests: 78, note: "", targetRate: null, cumulativeProfit: null, weather: "" },
-  { store: "駅前店", date: "2026-07-25", sales: 163200, guests: 55, note: "", targetRate: null, cumulativeProfit: null, weather: "" }
+  { store: "餃子酒場さんちょうめ", date: "2026-07-23", sales: 182400, guests: 64, note: "", targetRate: null, cumulativeProfit: null, weather: "" },
+  { store: "鳥料理と炭火焼 鶏やま", date: "2026-07-24", sales: 215900, guests: 78, note: "", targetRate: null, cumulativeProfit: null, weather: "" },
+  { store: "Tripot cafe BAKE stand", date: "2026-07-25", sales: 163200, guests: 55, note: "", targetRate: null, cumulativeProfit: null, weather: "" }
 ];
 
 var dateEl = document.getElementById("date");
