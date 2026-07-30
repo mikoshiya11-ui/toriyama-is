@@ -70,6 +70,7 @@
   <a class="back" href="staff.html">スタッフメニューへ戻る</a>
 </div>
 
+<script src="../staff-utils.js"></script>
 <script src="../shift-utils.js"></script>
 <script>
 var reportsKey = "toriyama_sales_reports";
@@ -116,7 +117,7 @@ function getLaborHours(store, dateStr) {
   try { confirmed = JSON.parse(localStorage.getItem(confirmedKey) || "{}"); }
   catch (e) { confirmed = {}; }
 
-  var staff = STORE_STAFF[store] || [];
+  var staff = getStoreStaffNames(store);
   var total = 0;
   var found = false;
   staff.forEach(function (name) {

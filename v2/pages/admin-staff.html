@@ -30,6 +30,12 @@
       <option value="">所属店舗を選択</option>
     </select>
 
+    <select class="field" id="in-employment">
+      <option value="">雇用形態を選択</option>
+      <option value="shain">社員</option>
+      <option value="baito">バイト</option>
+    </select>
+
     <label class="page-note" style="display:block;text-align:left;margin:4px 0 2px;">生年月日</label>
     <input class="field" id="in-birth" type="date">
 
@@ -74,7 +80,7 @@ var pendingRemoveId = null;
 
 function populateStoreSelect() {
   var sel = document.getElementById("in-store");
-  Object.keys(STORE_STAFF).forEach(function (store) {
+  STORE_LIST.forEach(function (store) {
     var o = document.createElement("option");
     o.value = store;
     o.textContent = store;
@@ -109,6 +115,7 @@ function onPhotoChange(e) {
 function clearForm() {
   document.getElementById("in-name").value = "";
   document.getElementById("in-store").value = "";
+  document.getElementById("in-employment").value = "";
   document.getElementById("in-birth").value = "";
   document.getElementById("in-hire").value = "";
   document.getElementById("in-gender").value = "";
@@ -122,13 +129,14 @@ function clearForm() {
 function doRegister() {
   var name = document.getElementById("in-name").value.trim();
   var store = document.getElementById("in-store").value;
+  var employmentType = document.getElementById("in-employment").value;
   var birthDate = document.getElementById("in-birth").value;
   var hireDate = document.getElementById("in-hire").value;
   var gender = document.getElementById("in-gender").value;
   var errorEl = document.getElementById("register-error");
 
-  if (!name || !store) {
-    errorEl.textContent = "名前と所属店舗は必須です";
+  if (!name || !store || !employmentType) {
+    errorEl.textContent = "名前・所属店舗・雇用形態は必須です";
     errorEl.style.display = "block";
     return;
   }
@@ -137,6 +145,7 @@ function doRegister() {
   addStaffMember({
     name: name,
     store: store,
+    employmentType: employmentType,
     birthDate: birthDate,
     hireDate: hireDate,
     gender: gender,
@@ -151,6 +160,12 @@ function genderLabel(g) {
   if (g === "male") { return "男性"; }
   if (g === "female") { return "女性"; }
   if (g === "other") { return "その他"; }
+  return "";
+}
+
+function employmentLabel(t) {
+  if (t === "shain") { return "社員"; }
+  if (t === "baito") { return "バイト"; }
   return "";
 }
 
@@ -188,6 +203,7 @@ function renderRemoveList() {
     var subLine = document.createElement("p");
     subLine.className = "staff-list-sub";
     var subParts = [person.store];
+    if (employmentLabel(person.employmentType)) { subParts.push(employmentLabel(person.employmentType)); }
     if (genderLabel(person.gender)) { subParts.push(genderLabel(person.gender)); }
     if (person.hireDate) { subParts.push("入社 " + person.hireDate); }
     subLine.textContent = subParts.join("　/　");

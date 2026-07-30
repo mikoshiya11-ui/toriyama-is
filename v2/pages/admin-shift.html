@@ -62,6 +62,7 @@
   <a class="back" href="../admin.html">管理者ダッシュボードへ戻る</a>
 </div>
 
+<script src="../staff-utils.js"></script>
 <script src="../shift-utils.js"></script>
 <script>
 var DETAIL_DAY_W = 140;
@@ -79,7 +80,7 @@ function toggleZoom() {
   render();
 }
 
-// STORE_STAFF は shift-utils.js で共通定義（社員が配列の先頭）
+// スタッフ一覧は shift-utils.js の getStoreStaffNames() 経由でSTAFF登録データから取得（社員が配列の先頭）
 
 var requestsKey = "toriyama_shift_requests_month";
 var confirmedKey = "toriyama_shift_confirmed_month";
@@ -171,7 +172,7 @@ function render() {
   document.getElementById("month-label").textContent = monthLabel(curYear, curMonthIdx);
 
   var store = document.getElementById("store-select").value;
-  var staff = STORE_STAFF[store] || [];
+  var staff = getStoreStaffNames(store);
   var requests = getRequests();
   var confirmed = getConfirmed();
   var inner = document.getElementById("gantt-inner");
@@ -379,7 +380,7 @@ document.addEventListener("contextmenu", function (e) {
 function saveConfirmed() {
   var confirmed = getConfirmed();
   var store = document.getElementById("store-select").value;
-  var staff = STORE_STAFF[store] || [];
+  var staff = getStoreStaffNames(store);
   var numDays = daysInMonth(curYear, curMonthIdx);
 
   staff.forEach(function (name) {

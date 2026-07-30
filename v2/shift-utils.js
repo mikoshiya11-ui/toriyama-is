@@ -1,22 +1,37 @@
 /*
   TORIYAMA-iS シフト機能で共通利用する日付・時刻ユーティリティ。
   admin-shift.html（管理者：月表示ガント）と shift-confirm.html（スタッフ：確定確認）で共有する。
+
+  スタッフ一覧について（2026/07/30〜）:
+    以前はここに架空のバイト・社員名をハードコードしていたが、STAFF登録
+    （admin-staff.html）で管理する実データ（toriyama_staff_roster）に一本化した。
+    このファイルを読み込むページは、必ず先に ../staff-utils.js も読み込むこと
+    （getStaffRoster() を使うため）。
 */
 var SHIFT_DAYS = ["月", "火", "水", "木", "金", "土", "日"];
 
-// 店舗ごとのスタッフ一覧（社員を配列の先頭に置くことで、一覧・ガントとも社員が上に並ぶ）
-var STORE_STAFF = {
-  "餃子酒場さんちょうめ": ["田中", "山田", "高橋", "中島"],
-  "鳥料理と炭火焼 鶏やま": ["佐藤", "鈴木", "岡本", "松本"],
-  "Tripot cafe BAKE stand": ["伊藤", "木村", "斎藤", "渡部"],
-  "Tripot cafe FOOD truck ①": ["加藤", "渡辺", "石井"],
-  "Tripot cafe FOOD truck ②": ["中村", "小林", "森田"]
-};
+// 会社の全店舗一覧（店舗選択プルダウン等で使う固定リスト）
+var STORE_LIST = [
+  "餃子酒場さんちょうめ",
+  "鳥料理と炭火焼 鶏やま",
+  "Tripot cafe BAKE stand",
+  "Tripot cafe FOOD truck ①",
+  "Tripot cafe FOOD truck ②"
+];
 
-var SHAIN_NAMES = ["田中", "佐藤", "鈴木", "伊藤", "加藤", "中村"];
+// 指定店舗の在籍スタッフ名一覧をSTAFF登録データから取得（社員を配列の先頭に）
+function getStoreStaffNames(store) {
+  var roster = (typeof getStaffRoster === "function") ? getStaffRoster() : [];
+  var inStore = roster.filter(function (p) { return p.store === store; });
+  var shain = inStore.filter(function (p) { return p.employmentType === "shain"; }).map(function (p) { return p.name; });
+  var baito = inStore.filter(function (p) { return p.employmentType !== "shain"; }).map(function (p) { return p.name; });
+  return shain.concat(baito);
+}
 
 function isShain(name) {
-  return SHAIN_NAMES.indexOf(name) !== -1;
+  var roster = (typeof getStaffRoster === "function") ? getStaffRoster() : [];
+  var person = roster.filter(function (p) { return p.name === name; })[0];
+  return !!(person && person.employmentType === "shain");
 }
 
 // JSのgetDay()（0=日〜6=土）を、SHIFT_DAYS配列のindex（0=月〜6=日）に変換

@@ -55,6 +55,7 @@
   <a class="back" href="kintai-shift.html">シフト管理へ戻る</a>
 </div>
 
+<script src="../staff-utils.js"></script>
 <script src="../shift-utils.js"></script>
 <script>
 var requestsKey = "toriyama_shift_requests_month";
@@ -146,7 +147,7 @@ function onStoreChange() {
     placeholder.value = "";
     placeholder.textContent = "お名前を選択";
     nameSel.appendChild(placeholder);
-    (STORE_STAFF[store] || []).forEach(function (name) {
+    getStoreStaffNames(store).forEach(function (name) {
       var o = document.createElement("option");
       o.value = name;
       o.textContent = name + (isShain(name) ? "（社員）" : "（バイト）");

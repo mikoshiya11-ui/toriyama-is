@@ -22,7 +22,7 @@
 <script src="../shift-utils.js"></script>
 <script src="../staff-utils.js"></script>
 <script>
-var STORES = Object.keys(STORE_STAFF);
+var STORES = STORE_LIST;
 var activeStore = "";
 
 function renderStoreButtons() {
@@ -46,6 +46,12 @@ function genderLabel(g) {
   if (g === "male") { return "男性"; }
   if (g === "female") { return "女性"; }
   if (g === "other") { return "その他"; }
+  return "";
+}
+
+function employmentLabel(t) {
+  if (t === "shain") { return "社員"; }
+  if (t === "baito") { return "バイト"; }
   return "";
 }
 
@@ -74,6 +80,7 @@ function staffCard(person) {
   var sub = document.createElement("p");
   sub.className = "staff-card-sub";
   var subParts = [];
+  if (employmentLabel(person.employmentType)) { subParts.push(employmentLabel(person.employmentType)); }
   if (person.hireDate) { subParts.push("入社 " + person.hireDate); }
   if (genderLabel(person.gender)) { subParts.push(genderLabel(person.gender)); }
   sub.textContent = subParts.join("　");

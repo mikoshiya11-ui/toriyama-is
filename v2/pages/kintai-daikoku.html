@@ -44,6 +44,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="../supabase-client.js"></script>
+<script src="../staff-utils.js"></script>
 <script src="../shift-utils.js"></script>
 <script>
 /*
@@ -56,7 +57,7 @@ var STORE_NAME = "餃子酒場さんちょうめ";
 
 function populateNameSelect() {
   var sel = document.getElementById("punch-name");
-  (STORE_STAFF[STORE_NAME] || []).forEach(function (name) {
+  getStoreStaffNames(STORE_NAME).forEach(function (name) {
     var o = document.createElement("option");
     o.value = name;
     o.textContent = name + (isShain(name) ? "（社員）" : "（バイト）");
