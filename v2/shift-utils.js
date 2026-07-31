@@ -208,3 +208,73 @@ async function pushSingleConfirmedShift(store, name, dateKey, entry) {
   }]);
   return !res.error;
 }
+
+/*
+  希望シフト（shift-submit.htmlでスタッフが送信する「働ける日」の申請）のSupabase同期レイヤー。
+
+  localStorageのキーは "toriyama_shift_requests_month"、構造は
+  { 氏名: { "YYYY-MM-DD": { requested: true/false, start: "17:00", end: "22:00" } } }。
+  Supabase側のshift_requestsテーブルとは、requested:true を is_off:false（start/endあり）、
+  requested:false を is_off:true（その日は希望なしと明示的に確定した状態）として対応させる。
+  まだ一度も触っていない日はSupabaseにも行を作らない（ローカル側も未定義のまま）。
+*/
+var shiftRequestStorageKey = "toriyama_shift_requests_month";
+
+function readShiftRequestsCache() {
+  try { return JSON.parse(localStorage.getItem(shiftRequestStorageKey) || "{}"); }
+  catch (e) { return {}; }
+}
+
+function writeShiftRequestsCache(data) {
+  localStorage.setItem(shiftRequestStorageKey, JSON.stringify(data));
+}
+
+// 指定店舗の在籍スタッフ全員分・指定年月の希望シフトをSupabaseから取得し、ローカルキャッシュにマージする
+async function syncShiftRequestsFromSupabase(store, year, monthIdx) {
+  if (typeof TORIYAMA_DB === "undefined" || !TORIYAMA_DB.isConfigured()) { return false; }
+  if (!store) { return false; }
+  var names = getStoreStaffNames(store);
+  var idToName = {};
+  names.forEach(function (n) {
+    var id = findEmployeeIdByName(n);
+    if (id) { idToName[id] = n; }
+  });
+  var employeeIds = Object.keys(idToName);
+  if (!employeeIds.length) { return false; }
+
+  try {
+    var rows = await TORIYAMA_DB.fetchShiftRequests(employeeIds, year, monthIdx + 1);
+    var cache = readShiftRequestsCache();
+    rows.forEach(function (r) {
+      var name = idToName[r.employee_id];
+      if (!name) { return; }
+      if (!cache[name]) { cache[name] = {}; }
+      cache[name][r.work_date] = r.is_off
+        ? { requested: false, start: "", end: "" }
+        : { requested: true, start: hmsToLabel(r.start_time), end: hmsToLabel(r.end_time) };
+    });
+    writeShiftRequestsCache(cache);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// 1日・1人分の希望シフトをSupabaseへ書き込む（shift-submit.htmlのsaveDay()から使用）
+async function pushSingleShiftRequest(store, name, dateKey, entry) {
+  if (typeof TORIYAMA_DB === "undefined" || !TORIYAMA_DB.isConfigured()) { return false; }
+  var employeeId = findEmployeeIdByName(name);
+  var storeCode = (typeof STORE_CODE_MAP !== "undefined") ? STORE_CODE_MAP[store] : null;
+  var storeId = storeCode ? await TORIYAMA_DB.getStoreId(storeCode) : null;
+  if (!employeeId || !storeId) { return false; }
+
+  var res = await TORIYAMA_DB.bulkUpsertShiftRequests([{
+    employeeId: employeeId,
+    storeId: storeId,
+    workDate: dateKey,
+    startTime: (entry.requested && entry.start) ? entry.start + ":00" : null,
+    endTime: (entry.requested && entry.end) ? entry.end + ":00" : null,
+    isOff: !entry.requested
+  }]);
+  return !res.error;
+}

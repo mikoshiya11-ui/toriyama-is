@@ -129,7 +129,8 @@ create table if not exists shift_requests (
   start_time   time,
   end_time     time,
   is_off       boolean not null default false,
-  submitted_at timestamptz not null default now()
+  submitted_at timestamptz not null default now(),
+  unique (employee_id, work_date)
 );
 
 create table if not exists shift_confirmed (

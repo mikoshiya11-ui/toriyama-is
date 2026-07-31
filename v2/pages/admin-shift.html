@@ -120,8 +120,9 @@ function changeMonth(delta) {
 async function onStoreOrMonthChange() {
   var store = document.getElementById("store-select").value;
   render();
-  var synced = await syncConfirmedShiftsFromSupabase(store, curYear, curMonthIdx);
-  if (synced) { render(); }
+  var syncedA = await syncConfirmedShiftsFromSupabase(store, curYear, curMonthIdx);
+  var syncedB = await syncShiftRequestsFromSupabase(store, curYear, curMonthIdx);
+  if (syncedA || syncedB) { render(); }
 }
 
 function buildHeader(numDays) {
@@ -422,8 +423,9 @@ async function saveConfirmed() {
   await syncStaffRosterFromSupabase();
   render();
   var store = document.getElementById("store-select").value;
-  var synced = await syncConfirmedShiftsFromSupabase(store, curYear, curMonthIdx);
-  if (synced) { render(); }
+  var syncedA = await syncConfirmedShiftsFromSupabase(store, curYear, curMonthIdx);
+  var syncedB = await syncShiftRequestsFromSupabase(store, curYear, curMonthIdx);
+  if (syncedA || syncedB) { render(); }
 })();
 </script>
 </body>

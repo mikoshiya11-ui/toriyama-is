@@ -123,16 +123,19 @@ function currentName() {
   return document.getElementById("staff-name").value;
 }
 
-function changeMonth(delta) {
+async function changeMonth(delta) {
   var d = new Date(curYear, curMonthIdx + delta, 1);
   curYear = d.getFullYear();
   curMonthIdx = d.getMonth();
   selectedDateKey = null;
   document.getElementById("editor").style.display = "none";
   renderCalendar();
+  var store = document.getElementById("store-select").value;
+  var synced = await syncShiftRequestsFromSupabase(store, curYear, curMonthIdx);
+  if (synced) { renderCalendar(); }
 }
 
-function onStoreChange() {
+async function onStoreChange() {
   var store = document.getElementById("store-select").value;
   var nameSel = document.getElementById("staff-name");
   nameSel.innerHTML = "";
@@ -157,6 +160,8 @@ function onStoreChange() {
     });
   }
   onNameChange();
+  var synced = await syncShiftRequestsFromSupabase(store, curYear, curMonthIdx);
+  if (synced) { renderCalendar(); }
 }
 
 function onNameChange() {
@@ -236,19 +241,21 @@ function toggleEditorFields() {
   document.getElementById("editor-time-row").style.display = on ? "block" : "none";
 }
 
-function saveDay() {
+async function saveDay() {
   var name = currentName();
+  var store = document.getElementById("store-select").value;
   if (!name || !selectedDateKey) { return; }
 
   var requests = getRequests();
   if (!requests[name]) { requests[name] = {}; }
 
   var requested = document.getElementById("editor-requested").checked;
-  requests[name][selectedDateKey] = {
+  var entry = {
     requested: requested,
     start: requested ? document.getElementById("editor-start").value : "",
     end: requested ? document.getElementById("editor-end").value : ""
   };
+  requests[name][selectedDateKey] = entry;
   saveRequests(requests);
 
   var msg = document.getElementById("confirm-msg");
@@ -256,6 +263,8 @@ function saveDay() {
   msg.textContent = selectedDateKey + " の希望を申請しました";
   msg.style.display = "block";
   renderCalendar();
+
+  await pushSingleShiftRequest(store, name, selectedDateKey, entry);
 }
 
 (async function init() {
