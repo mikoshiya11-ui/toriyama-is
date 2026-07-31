@@ -222,14 +222,18 @@ async function getStoreId() {
 
 async function resolveEmployee(name) {
   var cache = getJSON(employeeCacheKey, {});
-  if (cache[name]) { return cache[name]; }
-  if (!navigator.onLine) { return null; }
-  var employee = await TORIYAMA_DB.findEmployeeByName(name);
-  if (employee) {
-    cache[name] = { id: employee.id, name: employee.name };
-    setJSON(employeeCacheKey, cache);
-    return cache[name];
+  // 従業員が登録し直されるとIDが変わることがある（キャッシュが古いままだと
+  // 永久にFK違反で打刻が失敗し続けるバグの原因になっていたため、オンライン時は
+  // 必ずSupabaseに最新のIDを確認しにいく。オフライン時のみキャッシュにフォールバック）
+  if (navigator.onLine) {
+    var employee = await TORIYAMA_DB.findEmployeeByName(name);
+    if (employee) {
+      cache[name] = { id: employee.id, name: employee.name };
+      setJSON(employeeCacheKey, cache);
+      return cache[name];
+    }
   }
+  if (cache[name]) { return cache[name]; }
   return null;
 }
 
@@ -242,7 +246,15 @@ async function flushQueue() {
   var remaining = [];
   for (var i = 0; i < queue.length; i++) {
     var item = queue[i];
-    var res = await TORIYAMA_DB.insertPunch(item.employeeId, item.storeId, item.type, item.punchedAt, "button");
+    var employeeId = item.employeeId;
+    // キュー投入時点のemployeeIdが古い可能性があるので、名前が分かっていれば
+    // 再送信のたびに最新のIDへ解決し直す（古いIDのまま永久に失敗し続けるのを防ぐ）
+    if (item.name) {
+      var fresh = await resolveEmployee(item.name);
+      if (fresh) { employeeId = fresh.id; }
+    }
+    if (!employeeId || !item.storeId) { remaining.push(item); continue; }
+    var res = await TORIYAMA_DB.insertPunch(employeeId, item.storeId, item.type, item.punchedAt, "button");
     if (res.error) { remaining.push(item); }
   }
   setJSON(queueKey, remaining);
