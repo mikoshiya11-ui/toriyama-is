@@ -191,11 +191,69 @@ function showResult(name, typeLabel, queued) {
   }, 2500);
 }
 
+// 通信中など、一時的に全ボタンを触れなくする（連打防止の一次ロック）
 function setButtonsEnabled(enabled) {
   document.getElementById("btn-in").disabled = !enabled;
   document.getElementById("btn-out").disabled = !enabled;
   document.getElementById("btn-break-start").disabled = !enabled;
   document.getElementById("btn-break-end").disabled = !enabled;
+}
+
+// ============================================================
+// 二度打ち防止：直前の打刻の種類から、次に押せるボタンだけを決める
+//   （未出勤/退勤済み → 出勤のみ／出勤中 → 退勤・休憩／休憩中 → 休憩戻りのみ）
+// ============================================================
+var currentLastType = null; // 選択中の人の、直近の打刻の種類（null=まだ出勤していない）
+
+function allowedNextTypes(lastType) {
+  if (lastType === "in" || lastType === "break_end") { return ["out", "break_start"]; }
+  if (lastType === "break_start") { return ["break_end"]; }
+  return ["in"]; // lastTypeがnull、または"out"（退勤済み）
+}
+
+function applyButtonState(lastType) {
+  currentLastType = lastType;
+  var allowed = allowedNextTypes(lastType);
+  document.getElementById("btn-in").disabled = allowed.indexOf("in") === -1;
+  document.getElementById("btn-out").disabled = allowed.indexOf("out") === -1;
+  document.getElementById("btn-break-start").disabled = allowed.indexOf("break_start") === -1;
+  document.getElementById("btn-break-end").disabled = allowed.indexOf("break_end") === -1;
+}
+
+function todayDateStr() {
+  var now = new Date();
+  if (typeof dateKey === "function") { return dateKey(now.getFullYear(), now.getMonth(), now.getDate()); }
+  return now.getFullYear() + "-" + ("0" + (now.getMonth() + 1)).slice(-2) + "-" + ("0" + now.getDate()).slice(-2);
+}
+
+// 指定した人の「今日の直近の打刻の種類」を、サーバー側の記録と
+// まだ送信できていないオフラインキューの両方から判定する
+async function getLastPunchType(name) {
+  var candidates = [];
+  if (TORIYAMA_DB.isConfigured() && navigator.onLine) {
+    try {
+      var employee = await resolveEmployee(name);
+      if (employee) {
+        var rows = await TORIYAMA_DB.fetchPunchesForDate([employee.id], todayDateStr());
+        rows.forEach(function (r) { candidates.push({ type: r.type, at: r.punched_at }); });
+      }
+    } catch (e) { /* 取得に失敗してもキューの情報だけで判定を続ける */ }
+  }
+  var queue = getJSON(queueKey, []);
+  queue.forEach(function (item) {
+    if (item.name === name) { candidates.push({ type: item.type, at: item.punchedAt }); }
+  });
+  if (!candidates.length) { return null; }
+  candidates.sort(function (a, b) { return new Date(a.at) - new Date(b.at); });
+  return candidates[candidates.length - 1].type;
+}
+
+async function refreshButtonStateForCurrentName() {
+  var name = document.getElementById("punch-name").value;
+  if (!name) { applyButtonState(null); setButtonsEnabled(false); return; }
+  setButtonsEnabled(false);
+  var lastType = await getLastPunchType(name);
+  applyButtonState(lastType);
 }
 
 var PUNCH_TYPE_LABELS = { in: "出勤", out: "退勤", break_start: "休憩", break_end: "休憩戻り" };
@@ -322,8 +380,10 @@ async function cloudPunch(name, type) {
 function doPunch(type) {
   var name = document.getElementById("punch-name").value;
   if (!name) { return; }
+  // 二度打ち防止：今許可されていないボタンなら何もしない（念のための二重チェック）
+  if (allowedNextTypes(currentLastType).indexOf(type) === -1) { return; }
   setButtonsEnabled(false);
-  var finish = function () { setButtonsEnabled(true); };
+  var finish = function () { applyButtonState(type); };
   if (TORIYAMA_DB.isConfigured()) {
     cloudPunch(name, type).then(finish);
   } else {
@@ -333,7 +393,7 @@ function doPunch(type) {
 }
 
 document.getElementById("punch-name").addEventListener("change", function () {
-  setButtonsEnabled(!!this.value);
+  refreshButtonStateForCurrentName();
 });
 
 window.addEventListener("online", function () { updateConnStatus(); flushQueue(); });
