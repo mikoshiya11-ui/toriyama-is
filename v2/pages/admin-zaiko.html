@@ -22,7 +22,7 @@
   </select>
 
   <div class="zaiko-toolrow">
-    <input class="field" id="search-input" type="text" placeholder="品目名で絞り込み" oninput="render()" style="margin-bottom:0;">
+    <input class="field" id="search-input" type="text" placeholder="品目名または品番で絞り込み" oninput="render()" style="margin-bottom:0;">
     <label class="zaiko-check-row">
       <input type="checkbox" id="low-only-check" onchange="render()"> アラーム品目のみ表示
     </label>
@@ -154,7 +154,11 @@ function render() {
   var anyShown = false;
   cats.forEach(function (cat) {
     var shownItems = cat.items.filter(function (masterItem) {
-      if (query && masterItem.name.toLowerCase().indexOf(query) === -1) { return false; }
+      if (query) {
+        var nameMatch = masterItem.name.toLowerCase().indexOf(query) !== -1;
+        var codeMatch = masterItem.code && masterItem.code.toLowerCase().indexOf(query) !== -1;
+        if (!nameMatch && !codeMatch) { return false; }
+      }
       if (lowOnly && !isLowStock(getEffectiveItem(store, masterItem))) { return false; }
       return true;
     });
