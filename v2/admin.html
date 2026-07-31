@@ -111,10 +111,12 @@ async function renderSalesSummary() {
     todayTotal += today;
     monthTotal += month;
 
+    var displayName = store.replace("餃子酒場さんちょうめ", "餃子酒場<br>さんちょうめ");
+
     var a = document.createElement("a");
     a.className = "sales-card";
     a.href = "pages/renraku-uriage.html";
-    a.innerHTML = "<p class=\"sales-card-name\">" + store + "</p><p class=\"sales-card-amount\">" + formatYen(today) + "</p><p class=\"sales-card-month\">今月 " + formatYen(month) + "</p>";
+    a.innerHTML = "<p class=\"sales-card-name\">" + displayName + "</p><p class=\"sales-card-amount\">" + formatYen(today) + "</p><p class=\"sales-card-month\">今月 " + formatYen(month) + "</p>";
     grid.appendChild(a);
   });
 
