@@ -60,14 +60,17 @@ function getConfirmed() {
   catch (e) { return {}; }
 }
 
-function changeMonth(delta) {
+async function changeMonth(delta) {
   var d = new Date(curYear, curMonthIdx + delta, 1);
   curYear = d.getFullYear();
   curMonthIdx = d.getMonth();
   render();
+  var store = document.getElementById("store-select").value;
+  var synced = await syncConfirmedShiftsFromSupabase(store, curYear, curMonthIdx);
+  if (synced) { render(); }
 }
 
-function onStoreChange() {
+async function onStoreChange() {
   var store = document.getElementById("store-select").value;
   var nameSel = document.getElementById("staff-name");
   nameSel.innerHTML = "";
@@ -88,6 +91,8 @@ function onStoreChange() {
     });
   }
   render();
+  var synced = await syncConfirmedShiftsFromSupabase(store, curYear, curMonthIdx);
+  if (synced) { render(); }
 }
 
 function render() {

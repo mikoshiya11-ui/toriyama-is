@@ -107,14 +107,17 @@ function getConfirmed() {
   catch (e) { return {}; }
 }
 
-function changeMonth(delta) {
+async function changeMonth(delta) {
   var d = new Date(curYear, curMonthIdx + delta, 1);
   curYear = d.getFullYear();
   curMonthIdx = d.getMonth();
   render();
+  var store = document.getElementById("store-select").value;
+  var synced = await syncConfirmedShiftsFromSupabase(store, curYear, curMonthIdx);
+  if (synced) { render(); }
 }
 
-function onStoreChange() {
+async function onStoreChange() {
   var store = document.getElementById("store-select").value;
   var nameSel = document.getElementById("name-select");
   nameSel.innerHTML = "";
@@ -139,6 +142,8 @@ function onStoreChange() {
     });
   }
   render();
+  var synced = await syncConfirmedShiftsFromSupabase(store, curYear, curMonthIdx);
+  if (synced) { render(); }
 }
 
 // 休憩は労働基準法の最低ライン（6時間超で45分、8時間超で60分）で自動算出する簡易ルール

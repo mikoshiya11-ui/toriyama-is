@@ -15,7 +15,7 @@
   </div>
 
   <div class="shift-gantt-toolrow">
-    <select class="shift-store-select" id="store-select" onchange="render()">
+    <select class="shift-store-select" id="store-select" onchange="onStoreOrMonthChange()">
       <option>餃子酒場さんちょうめ</option>
       <option>鳥料理と炭火焼 鶏やま</option>
       <option>Tripot cafe BAKE stand</option>
@@ -114,7 +114,14 @@ function changeMonth(delta) {
   var d = new Date(curYear, curMonthIdx + delta, 1);
   curYear = d.getFullYear();
   curMonthIdx = d.getMonth();
+  onStoreOrMonthChange();
+}
+
+async function onStoreOrMonthChange() {
+  var store = document.getElementById("store-select").value;
   render();
+  var synced = await syncConfirmedShiftsFromSupabase(store, curYear, curMonthIdx);
+  if (synced) { render(); }
 }
 
 function buildHeader(numDays) {
@@ -379,34 +386,44 @@ document.addEventListener("contextmenu", function (e) {
   if (!e.target.closest(".shift-bar")) { hideContextMenu(); }
 });
 
-function saveConfirmed() {
+async function saveConfirmed() {
   var confirmed = getConfirmed();
   var store = document.getElementById("store-select").value;
   var staff = getStoreStaffNames(store);
   var numDays = daysInMonth(curYear, curMonthIdx);
+  var storeSubset = {};
 
   staff.forEach(function (name) {
     if (!confirmed[name]) { confirmed[name] = {}; }
+    storeSubset[name] = {};
     for (var day = 1; day <= numDays; day++) {
       var dKey = dateKey(curYear, curMonthIdx, day);
       var track = document.querySelector('.shift-gantt-track[data-name="' + name + '"][data-datekey="' + dKey + '"]');
       var bar = track ? track.querySelector(".shift-bar") : null;
+      var entry;
       if (bar) {
-        confirmed[name][dKey] = { off: false, start: hourToLabel(Number(bar.dataset.start)), end: hourToLabel(Number(bar.dataset.end)) };
+        entry = { off: false, start: hourToLabel(Number(bar.dataset.start)), end: hourToLabel(Number(bar.dataset.end)) };
       } else {
-        confirmed[name][dKey] = { off: true, start: "", end: "" };
+        entry = { off: true, start: "", end: "" };
       }
+      confirmed[name][dKey] = entry;
+      storeSubset[name][dKey] = entry;
     }
   });
 
   saveConfirmedData(confirmed);
   document.getElementById("confirm-msg").style.display = "block";
   render();
+
+  await pushConfirmedShiftsToSupabase(store, curYear, curMonthIdx, storeSubset);
 }
 
 (async function init() {
   await syncStaffRosterFromSupabase();
   render();
+  var store = document.getElementById("store-select").value;
+  var synced = await syncConfirmedShiftsFromSupabase(store, curYear, curMonthIdx);
+  if (synced) { render(); }
 })();
 </script>
 </body>

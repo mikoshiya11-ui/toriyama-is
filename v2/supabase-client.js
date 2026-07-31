@@ -178,6 +178,44 @@ var TORIYAMA_DB = (function () {
     });
   }
 
+  // 複数の従業員IDについて、指定した年月の確定シフトをまとめて取得
+  // （shift-confirm.html / admin-shift.html / 個人の勤怠確認・勤怠確認 で使用）
+  async function fetchConfirmedShifts(employeeIds, year, month) {
+    var c = getClient();
+    var companyId = await getCompanyId();
+    if (!c || !companyId || !employeeIds || !employeeIds.length) { return []; }
+    var startDate = year + "-" + String(month).padStart(2, "0") + "-01";
+    var nextMonthDate = (month === 12) ? (year + 1) + "-01-01" : year + "-" + String(month + 1).padStart(2, "0") + "-01";
+    var res = await c.from("shift_confirmed")
+      .select("employee_id, work_date, start_time, end_time, is_off")
+      .eq("company_id", companyId)
+      .in("employee_id", employeeIds)
+      .gte("work_date", startDate)
+      .lt("work_date", nextMonthDate);
+    return res.data || [];
+  }
+
+  // 確定シフトをまとめて書き込む（1人1日=1行。同じemployee_id+work_dateは上書き）
+  // rows: [{ employeeId, storeId, workDate, startTime, endTime, isOff }, ...]
+  async function bulkUpsertConfirmedShifts(rows) {
+    var c = getClient();
+    var companyId = await getCompanyId();
+    if (!c || !companyId) { return { error: "not_configured" }; }
+    if (!rows || !rows.length) { return { error: null }; }
+    var payload = rows.map(function (r) {
+      return {
+        company_id: companyId,
+        employee_id: r.employeeId,
+        store_id: r.storeId,
+        work_date: r.workDate,
+        start_time: r.startTime || null,
+        end_time: r.endTime || null,
+        is_off: !!r.isOff
+      };
+    });
+    return await c.from("shift_confirmed").upsert(payload, { onConflict: "employee_id,work_date" }).select();
+  }
+
   return {
     isConfigured: isConfigured,
     getClient: getClient,
@@ -191,6 +229,8 @@ var TORIYAMA_DB = (function () {
     fetchAllStores: fetchAllStores,
     fetchAllEmployees: fetchAllEmployees,
     addEmployee: addEmployee,
-    deactivateEmployee: deactivateEmployee
+    deactivateEmployee: deactivateEmployee,
+    fetchConfirmedShifts: fetchConfirmedShifts,
+    bulkUpsertConfirmedShifts: bulkUpsertConfirmedShifts
   };
 })();

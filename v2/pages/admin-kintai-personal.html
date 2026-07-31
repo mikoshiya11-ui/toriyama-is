@@ -140,14 +140,17 @@ function saveConfirmedData(data) {
   localStorage.setItem(confirmedKey, JSON.stringify(data));
 }
 
-function changeMonth(delta) {
+async function changeMonth(delta) {
   var d = new Date(curYear, curMonthIdx + delta, 1);
   curYear = d.getFullYear();
   curMonthIdx = d.getMonth();
   render();
+  var store = document.getElementById("store-select").value;
+  var synced = await syncConfirmedShiftsFromSupabase(store, curYear, curMonthIdx);
+  if (synced) { render(); }
 }
 
-function onStoreChange() {
+async function onStoreChange() {
   var store = document.getElementById("store-select").value;
   var nameSel = document.getElementById("name-select");
   nameSel.innerHTML = "";
@@ -172,6 +175,8 @@ function onStoreChange() {
     });
   }
   render();
+  var synced = await syncConfirmedShiftsFromSupabase(store, curYear, curMonthIdx);
+  if (synced) { render(); }
 }
 
 // 休憩は労働基準法の最低ライン（6時間超で45分、8時間超で60分）で自動算出する簡易ルール
@@ -364,17 +369,19 @@ function closeEditModal() {
   document.getElementById("edit-overlay").style.display = "none";
 }
 
-function saveEdit() {
+async function saveEdit() {
   if (!editingDateKey) { return; }
   var name = document.getElementById("name-select").value;
+  var store = document.getElementById("store-select").value;
   var kubun = document.getElementById("edit-kubun").value;
   var errorEl = document.getElementById("edit-error");
 
   var confirmed = getConfirmed();
   if (!confirmed[name]) { confirmed[name] = {}; }
 
+  var entry;
   if (kubun === "off") {
-    confirmed[name][editingDateKey] = { off: true };
+    entry = { off: true };
   } else {
     var start = document.getElementById("edit-start").value;
     var end = document.getElementById("edit-end").value;
@@ -383,12 +390,16 @@ function saveEdit() {
       errorEl.style.display = "block";
       return;
     }
-    confirmed[name][editingDateKey] = { off: false, start: start, end: end };
+    entry = { off: false, start: start, end: end };
   }
 
+  confirmed[name][editingDateKey] = entry;
   saveConfirmedData(confirmed);
+  var savedDateKey = editingDateKey;
   closeEditModal();
   render();
+
+  await pushSingleConfirmedShift(store, name, savedDateKey, entry);
 }
 
 document.getElementById("detail-body").addEventListener("click", function (e) {
@@ -458,3 +469,4 @@ function exportPDF() {
 </script>
 </body>
 </html>
+

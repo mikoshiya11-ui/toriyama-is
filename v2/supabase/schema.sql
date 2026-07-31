@@ -142,7 +142,8 @@ create table if not exists shift_confirmed (
   end_time      time,
   is_off        boolean not null default false,
   confirmed_by  uuid references employees(id),
-  confirmed_at  timestamptz not null default now()
+  confirmed_at  timestamptz not null default now(),
+  unique (employee_id, work_date)
 );
 
 -- ============================================================
