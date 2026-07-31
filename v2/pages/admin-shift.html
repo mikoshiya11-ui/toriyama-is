@@ -212,8 +212,12 @@ function render() {
 
       html += '<div class="shift-gantt-track" data-name="' + name + '" data-datekey="' + dKey + '" style="width:' + dayW + 'px;flex:0 0 ' + dayW + 'px;">';
 
+      // 「1日フリーで入れる」希望は、時間帯の指定が無いので終日（0〜24時）のバーとして仮表示する
+      var reqStart = reqDay && reqDay.free ? 0 : (reqDay ? labelToHour(reqDay.start) : null);
+      var reqEnd = reqDay && reqDay.free ? 24 : (reqDay ? labelToHour(reqDay.end) : null);
+
       if (reqDay && reqDay.requested) {
-        html += buildBar(name, dKey, labelToHour(reqDay.start), labelToHour(reqDay.end), "request");
+        html += buildBar(name, dKey, reqStart, reqEnd, "request");
       }
 
       // その日について「確定データが実際にあるか」だけを見る（月単位のフラグでは判定しない）。
@@ -225,7 +229,7 @@ function render() {
           html += '<div class="empty-hint" data-role="add" data-name="' + name + '" data-datekey="' + dKey + '">＋</div>';
         }
       } else if (reqDay && reqDay.requested) {
-        html += buildBar(name, dKey, labelToHour(reqDay.start), labelToHour(reqDay.end), "preview");
+        html += buildBar(name, dKey, reqStart, reqEnd, "preview");
       } else {
         html += '<div class="empty-hint" data-role="add" data-name="' + name + '" data-datekey="' + dKey + '">＋</div>';
       }

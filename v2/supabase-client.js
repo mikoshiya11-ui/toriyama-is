@@ -224,7 +224,7 @@ var TORIYAMA_DB = (function () {
     var startDate = year + "-" + String(month).padStart(2, "0") + "-01";
     var nextMonthDate = (month === 12) ? (year + 1) + "-01-01" : year + "-" + String(month + 1).padStart(2, "0") + "-01";
     var res = await c.from("shift_requests")
-      .select("employee_id, work_date, start_time, end_time, is_off")
+      .select("employee_id, work_date, start_time, end_time, is_off, is_free")
       .eq("company_id", companyId)
       .in("employee_id", employeeIds)
       .gte("work_date", startDate)
@@ -246,7 +246,8 @@ var TORIYAMA_DB = (function () {
         work_date: r.workDate,
         start_time: r.startTime || null,
         end_time: r.endTime || null,
-        is_off: !!r.isOff
+        is_off: !!r.isOff,
+        is_free: !!r.isFree
       };
     });
     return await c.from("shift_requests").upsert(payload, { onConflict: "employee_id,work_date" }).select();

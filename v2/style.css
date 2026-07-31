@@ -1515,9 +1515,11 @@ button {
 }
 
 .shift-cal-cell .cal-time {
-  font-size: 10px;
+  font-size: 8px;
+  line-height: 1.2;
   color: #888880;
-  margin-top: 3px;
+  margin-top: 2px;
+  text-align: center;
 }
 
 .shift-cal-cell.selected .cal-time {

@@ -250,8 +250,8 @@ async function syncShiftRequestsFromSupabase(store, year, monthIdx) {
       if (!name) { return; }
       if (!cache[name]) { cache[name] = {}; }
       cache[name][r.work_date] = r.is_off
-        ? { requested: false, start: "", end: "" }
-        : { requested: true, start: hmsToLabel(r.start_time), end: hmsToLabel(r.end_time) };
+        ? { requested: false, start: "", end: "", free: false }
+        : { requested: true, free: !!r.is_free, start: r.is_free ? "" : hmsToLabel(r.start_time), end: r.is_free ? "" : hmsToLabel(r.end_time) };
     });
     writeShiftRequestsCache(cache);
     return true;
@@ -272,9 +272,10 @@ async function pushSingleShiftRequest(store, name, dateKey, entry) {
     employeeId: employeeId,
     storeId: storeId,
     workDate: dateKey,
-    startTime: (entry.requested && entry.start) ? entry.start + ":00" : null,
-    endTime: (entry.requested && entry.end) ? entry.end + ":00" : null,
-    isOff: !entry.requested
+    startTime: (entry.requested && !entry.free && entry.start) ? entry.start + ":00" : null,
+    endTime: (entry.requested && !entry.free && entry.end) ? entry.end + ":00" : null,
+    isOff: !entry.requested,
+    isFree: !!(entry.requested && entry.free)
   }]);
   return !res.error;
 }

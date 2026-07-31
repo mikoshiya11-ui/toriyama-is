@@ -130,6 +130,9 @@ create table if not exists shift_requests (
   work_date    date not null,
   start_time   time,
   end_time     time,
+  -- is_free: 「1日フリーで入れる」＝時間帯を指定せず、その日は終日対応可能という申請
+  -- （鳥山社長要望。2026/08/01〜。start_time/end_timeはこの場合どちらもnullのまま）
+  is_free      boolean not null default false,
   is_off       boolean not null default false,
   submitted_at timestamptz not null default now(),
   unique (employee_id, work_date)
