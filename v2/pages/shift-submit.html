@@ -48,6 +48,7 @@
       </div>
     </div>
     <button class="nav-btn" style="width:100%;" onclick="saveDay()">この日を申請</button>
+    <button class="nav-btn" id="cancel-btn" style="width:100%;margin-top:8px;background:#fff;color:#993556;border:1px solid #993556;display:none;" onclick="cancelDay()">この日の希望を取り消す</button>
   </div>
 
   <p class="confirm-msg" id="confirm-msg" style="display:none;"></p>
@@ -233,6 +234,7 @@ function openEditor(dKey) {
 
   toggleEditorFields();
   renderPatternButtons();
+  document.getElementById("cancel-btn").style.display = entry.requested ? "block" : "none";
   document.getElementById("editor").style.display = "block";
 }
 
@@ -265,6 +267,32 @@ async function saveDay() {
   renderCalendar();
 
   await pushSingleShiftRequest(store, name, selectedDateKey, entry);
+}
+
+// 一度申請した希望シフトを取り消す（requested:falseで上書き保存し、Supabaseにも反映）
+async function cancelDay() {
+  var name = currentName();
+  var store = document.getElementById("store-select").value;
+  if (!name || !selectedDateKey) { return; }
+  var dKey = selectedDateKey;
+
+  var requests = getRequests();
+  if (!requests[name]) { requests[name] = {}; }
+
+  var entry = { requested: false, start: "", end: "" };
+  requests[name][dKey] = entry;
+  saveRequests(requests);
+
+  var msg = document.getElementById("confirm-msg");
+  msg.style.color = "";
+  msg.textContent = dKey + " の希望を取り消しました";
+  msg.style.display = "block";
+
+  document.getElementById("editor").style.display = "none";
+  selectedDateKey = null;
+  renderCalendar();
+
+  await pushSingleShiftRequest(store, name, dKey, entry);
 }
 
 (async function init() {
