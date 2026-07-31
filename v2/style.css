@@ -951,6 +951,12 @@ button {
   margin: 0;
 }
 
+.zaiko-qty-input {
+  font-size: 20px;
+  text-align: center;
+  letter-spacing: 1px;
+}
+
 .hidden-input {
   position: absolute;
   opacity: 0;

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>在庫一覧 | 鳥やま 社内システム</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+  <img src="../assets/logo.png" alt="鳥やま" class="logo" style="width:64px;margin-bottom:24px;">
+  <span class="demo-tag">実棚卸データ・2026年4-5月分</span>
+  <h1 class="page-title">在庫一覧・手入力</h1>
+  <p class="page-note" style="margin-bottom:8px;">数量を確認・入力してください。発注点以下の品目は赤で表示されます</p>
+
+  <select class="field" id="store-select" onchange="render()" style="width:336px;">
+    <option>餃子酒場さんちょうめ</option>
+    <option>鳥料理と炭火焼 鶏やま</option>
+    <option>Tripot cafe BAKE stand</option>
+    <option>Tripot cafe FOOD truck ①</option>
+    <option>Tripot cafe FOOD truck ②</option>
+  </select>
+
+  <div class="zaiko-toolrow" style="width:336px;">
+    <input class="field" id="search-input" type="text" placeholder="品目名で絞り込み" oninput="render()" style="margin-bottom:0;">
+    <label class="zaiko-check-row">
+      <input type="checkbox" id="low-only-check" onchange="render()"> 要発注のみ表示
+    </label>
+  </div>
+
+  <p class="zaiko-summary" id="summary-line" style="width:336px;"></p>
+
+  <div class="step" id="stock-area" style="width:336px;">
+    <p class="page-note">読み込み中...</p>
+  </div>
+
+  <a class="back" href="zaiko.html">バーコードスキャンへ戻る</a>
+</div>
+
+<script src="../zaiko-utils.js"></script>
+<script>
+function currentStore() {
+  return document.getElementById("store-select").value;
+}
+
+function allEffectiveItems(store) {
+  var cats = ITEM_MASTER[store] || [];
+  var out = [];
+  cats.forEach(function (cat) {
+    cat.items.forEach(function (masterItem) {
+      out.push(getEffectiveItem(store, masterItem));
+    });
+  });
+  return out;
+}
+
+function updateSummary(store) {
+  var all = allEffectiveItems(store);
+  var lowCount = all.filter(isLowStock).length;
+  var el = document.getElementById("summary-line");
+  if (!all.length) {
+    el.textContent = "この店舗の品目データはまだありません";
+    return;
+  }
+  el.innerHTML = "全 " + all.length + " 品目 / うち要発注 <span class=\"low-count\">" + lowCount + "</span> 件";
+}
+
+function buildRow(store, masterItem) {
+  var item = getEffectiveItem(store, masterItem);
+
+  var row = document.createElement("div");
+  row.className = "stock-row" + (isLowStock(item) ? " low-stock" : "");
+
+  var top = document.createElement("div");
+  top.className = "stock-top";
+  var nameSpan = document.createElement("span");
+  nameSpan.textContent = item.name + (masterItem.code ? "（" + masterItem.code + "）" : "");
+  var rpSpan = document.createElement("span");
+  rpSpan.className = "stock-qty";
+  rpSpan.textContent = "発注点 " + (item.reorderPoint > 0 ? item.reorderPoint : "未設定");
+  top.appendChild(nameSpan);
+  top.appendChild(rpSpan);
+
+  var fields = document.createElement("div");
+  fields.className = "stock-fields";
+
+  var qtyLabel = document.createElement("label");
+  qtyLabel.textContent = "数量";
+  var qtyInput = document.createElement("input");
+  qtyInput.className = "stock-num";
+  qtyInput.type = "number";
+  qtyInput.step = "0.01";
+  qtyInput.value = item.qty;
+  qtyLabel.appendChild(qtyInput);
+
+  var lowTag = document.createElement("span");
+  lowTag.className = "low-tag";
+  lowTag.textContent = "要発注";
+  lowTag.style.display = isLowStock(item) ? "inline-block" : "none";
+
+  var btn = document.createElement("button");
+  btn.className = "order-btn" + (item.ordered ? " ordered" : "");
+  btn.textContent = item.ordered ? "発注済み" : "発注";
+  btn.onclick = function () {
+    var updated = getEffectiveItem(store, masterItem);
+    var nowOrdered = !updated.ordered;
+    setItemState(store, masterItem.name, { ordered: nowOrdered });
+    btn.classList.toggle("ordered", nowOrdered);
+    btn.textContent = nowOrdered ? "発注済み" : "発注";
+  };
+
+  function commitQty() {
+    var qty = parseFloat(qtyInput.value);
+    if (isNaN(qty)) { qty = 0; }
+    setItemState(store, masterItem.name, { qty: qty });
+    var updated = getEffectiveItem(store, masterItem);
+    row.classList.toggle("low-stock", isLowStock(updated));
+    lowTag.style.display = isLowStock(updated) ? "inline-block" : "none";
+    updateSummary(store);
+  }
+  qtyInput.addEventListener("change", commitQty);
+
+  fields.appendChild(qtyLabel);
+  fields.appendChild(lowTag);
+  fields.appendChild(btn);
+
+  row.appendChild(top);
+  row.appendChild(fields);
+  return row;
+}
+
+function render() {
+  var store = currentStore();
+  var query = document.getElementById("search-input").value.trim().toLowerCase();
+  var lowOnly = document.getElementById("low-only-check").checked;
+  var cats = ITEM_MASTER[store] || [];
+  var area = document.getElementById("stock-area");
+  area.innerHTML = "";
+
+  updateSummary(store);
+
+  if (!cats.length) {
+    area.innerHTML = '<p class="page-note">この店舗の品目データはまだありません</p>';
+    return;
+  }
+
+  var anyShown = false;
+  cats.forEach(function (cat) {
+    var shownItems = cat.items.filter(function (masterItem) {
+      if (query && masterItem.name.toLowerCase().indexOf(query) === -1) { return false; }
+      if (lowOnly && !isLowStock(getEffectiveItem(store, masterItem))) { return false; }
+      return true;
+    });
+    if (!shownItems.length) { return; }
+    anyShown = true;
+
+    var catEl = document.createElement("p");
+    catEl.className = "stock-cat";
+    catEl.textContent = cat.cat;
+    area.appendChild(catEl);
+
+    shownItems.forEach(function (masterItem) {
+      area.appendChild(buildRow(store, masterItem));
+    });
+  });
+
+  if (!anyShown) {
+    area.innerHTML += '<p class="page-note">該当する品目がありません</p>';
+  }
+}
+
+render();
+</script>
+</body>
+</html>

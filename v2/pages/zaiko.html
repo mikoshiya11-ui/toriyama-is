@@ -9,167 +9,148 @@
 <body>
 <div class="wrap">
   <img src="../assets/logo.png" alt="鳥やま" class="logo" style="width:64px;margin-bottom:24px;">
-  <span class="demo-tag">実棚卸データ・2026年4-5月分</span>
   <h1 class="page-title">在庫管理</h1>
-  <p class="page-note" style="margin-bottom:8px;">数量を確認・入力してください。発注点以下の品目は赤で表示されます</p>
+  <p class="page-note" id="scan-instruction" style="margin-bottom:16px;">棚のバーコードをスキャンしてください</p>
 
-  <select class="field" id="store-select" onchange="render()" style="width:336px;">
-    <option>餃子酒場さんちょうめ</option>
-    <option>鳥料理と炭火焼 鶏やま</option>
-    <option>Tripot cafe BAKE stand</option>
-    <option>Tripot cafe FOOD truck ①</option>
-    <option>Tripot cafe FOOD truck ②</option>
-  </select>
+  <div class="step" style="width:288px;">
+    <input class="field" id="scan-input" type="text" placeholder="バーコードをスキャン" autocomplete="off" autofocus>
 
-  <div class="zaiko-toolrow" style="width:336px;">
-    <input class="field" id="search-input" type="text" placeholder="品目名で絞り込み" oninput="render()" style="margin-bottom:0;">
-    <label class="zaiko-check-row">
-      <input type="checkbox" id="low-only-check" onchange="render()"> 要発注のみ表示
-    </label>
+    <div id="match-area" style="display:none;">
+      <div class="card-result new" style="display:block;">
+        <p class="card-result-name" id="match-name"></p>
+        <p class="card-result-sub" id="match-sub"></p>
+      </div>
+
+      <input class="field zaiko-qty-input" id="qty-input" type="number" step="0.01" inputmode="decimal" placeholder="数量を入力してEnter">
+
+      <button type="button" class="nav-btn" id="cancel-btn" onclick="cancelMatch()">キャンセル</button>
+    </div>
+
+    <p class="page-note" id="scan-error" style="color:#993556;display:none;margin-top:8px;"></p>
+
+    <p class="page-note" style="margin:24px 0 8px;text-align:left;">直近の入力ログ</p>
+    <div id="log-list"></div>
   </div>
 
-  <p class="zaiko-summary" id="summary-line" style="width:336px;"></p>
-
-  <div class="step" id="stock-area" style="width:336px;">
-    <p class="page-note">読み込み中...</p>
-  </div>
-
+  <a class="back" href="zaiko-list.html" style="margin-top:16px;">一覧で確認・手入力はこちら</a>
   <a class="back" href="staff.html">スタッフメニューへ戻る</a>
 </div>
 
 <script src="../zaiko-utils.js"></script>
 <script>
-function currentStore() {
-  return document.getElementById("store-select").value;
+var scanLogKey = "toriyama_zaiko_scan_log";
+var matched = null; // { store, category, masterItem }
+
+function getScanLog() {
+  try { return JSON.parse(localStorage.getItem(scanLogKey) || "[]"); }
+  catch (e) { return []; }
 }
 
-function allEffectiveItems(store) {
-  var cats = ITEM_MASTER[store] || [];
-  var out = [];
-  cats.forEach(function (cat) {
-    cat.items.forEach(function (masterItem) {
-      out.push(getEffectiveItem(store, masterItem));
-    });
-  });
-  return out;
+function pushScanLog(entry) {
+  var log = getScanLog();
+  log.push(entry);
+  localStorage.setItem(scanLogKey, JSON.stringify(log));
+  renderLog();
 }
 
-function updateSummary(store) {
-  var all = allEffectiveItems(store);
-  var lowCount = all.filter(isLowStock).length;
-  var el = document.getElementById("summary-line");
-  if (!all.length) {
-    el.textContent = "この店舗の品目データはまだありません";
+function timeNow() {
+  var d = new Date();
+  return ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2);
+}
+
+function renderLog() {
+  var log = getScanLog();
+  var el = document.getElementById("log-list");
+  el.innerHTML = "";
+  var recent = log.slice(-6).reverse();
+  if (recent.length === 0) {
+    el.innerHTML = '<p class="page-note">まだ入力がありません</p>';
     return;
   }
-  el.innerHTML = "全 " + all.length + " 品目 / うち要発注 <span class=\"low-count\">" + lowCount + "</span> 件";
+  recent.forEach(function (r) {
+    var row = document.createElement("div");
+    row.className = "log-row";
+    row.innerHTML = "<span>" + r.name + "　数量" + r.qty + "</span><span>" + r.time + "</span>";
+    el.appendChild(row);
+  });
 }
 
-function buildRow(store, masterItem) {
-  var item = getEffectiveItem(store, masterItem);
+function focusScan() {
+  var input = document.getElementById("scan-input");
+  input.value = "";
+  input.focus();
+}
 
-  var row = document.createElement("div");
-  row.className = "stock-row" + (isLowStock(item) ? " low-stock" : "");
+function showError(msg) {
+  var el = document.getElementById("scan-error");
+  el.textContent = msg;
+  el.style.display = "block";
+  setTimeout(function () { el.style.display = "none"; }, 2500);
+}
 
-  var top = document.createElement("div");
-  top.className = "stock-top";
-  var nameSpan = document.createElement("span");
-  nameSpan.textContent = item.name;
-  var rpSpan = document.createElement("span");
-  rpSpan.className = "stock-qty";
-  rpSpan.textContent = "発注点 " + (item.reorderPoint > 0 ? item.reorderPoint : "未設定");
-  top.appendChild(nameSpan);
-  top.appendChild(rpSpan);
-
-  var fields = document.createElement("div");
-  fields.className = "stock-fields";
-
-  var qtyLabel = document.createElement("label");
-  qtyLabel.textContent = "数量";
-  var qtyInput = document.createElement("input");
-  qtyInput.className = "stock-num";
-  qtyInput.type = "number";
-  qtyInput.step = "0.01";
-  qtyInput.value = item.qty;
-  qtyLabel.appendChild(qtyInput);
-
-  var lowTag = document.createElement("span");
-  lowTag.className = "low-tag";
-  lowTag.textContent = "要発注";
-  lowTag.style.display = isLowStock(item) ? "inline-block" : "none";
-
-  var btn = document.createElement("button");
-  btn.className = "order-btn" + (item.ordered ? " ordered" : "");
-  btn.textContent = item.ordered ? "発注済み" : "発注";
-  btn.onclick = function () {
-    var updated = getEffectiveItem(store, masterItem);
-    var nowOrdered = !updated.ordered;
-    setItemState(store, masterItem.name, { ordered: nowOrdered });
-    btn.classList.toggle("ordered", nowOrdered);
-    btn.textContent = nowOrdered ? "発注済み" : "発注";
-  };
-
-  function commitQty() {
-    var qty = parseFloat(qtyInput.value);
-    if (isNaN(qty)) { qty = 0; }
-    setItemState(store, masterItem.name, { qty: qty });
-    var updated = getEffectiveItem(store, masterItem);
-    row.classList.toggle("low-stock", isLowStock(updated));
-    lowTag.style.display = isLowStock(updated) ? "inline-block" : "none";
-    updateSummary(store);
+function onScanCode(code) {
+  document.getElementById("scan-error").style.display = "none";
+  var result = findItemByCode(code);
+  if (!result) {
+    showError("品番が見つかりません：" + code);
+    focusScan();
+    return;
   }
-  qtyInput.addEventListener("change", commitQty);
+  matched = result;
+  var effective = getEffectiveItem(result.store, result.masterItem);
 
-  fields.appendChild(qtyLabel);
-  fields.appendChild(lowTag);
-  fields.appendChild(btn);
+  document.getElementById("match-name").textContent = effective.name;
+  document.getElementById("match-sub").textContent = result.store + "　現在の数量：" + formatQty(effective.qty) + "　（品番：" + result.masterItem.code + "）";
+  document.getElementById("match-area").style.display = "block";
+  document.getElementById("scan-instruction").textContent = "数量を入力してEnterで確定してください";
 
-  row.appendChild(top);
-  row.appendChild(fields);
-  return row;
+  var qtyInput = document.getElementById("qty-input");
+  qtyInput.value = "";
+  qtyInput.focus();
 }
 
-function render() {
-  var store = currentStore();
-  var query = document.getElementById("search-input").value.trim().toLowerCase();
-  var lowOnly = document.getElementById("low-only-check").checked;
-  var cats = ITEM_MASTER[store] || [];
-  var area = document.getElementById("stock-area");
-  area.innerHTML = "";
+function cancelMatch() {
+  matched = null;
+  document.getElementById("match-area").style.display = "none";
+  document.getElementById("scan-instruction").textContent = "棚のバーコードをスキャンしてください";
+  focusScan();
+}
 
-  updateSummary(store);
-
-  if (!cats.length) {
-    area.innerHTML = '<p class="page-note">この店舗の品目データはまだありません</p>';
+function commitQty() {
+  if (!matched) { return; }
+  var qtyInput = document.getElementById("qty-input");
+  var qty = parseFloat(qtyInput.value);
+  if (isNaN(qty) || qty < 0) {
+    showError("数量を正しく入力してください");
+    qtyInput.focus();
     return;
   }
 
-  var anyShown = false;
-  cats.forEach(function (cat) {
-    var shownItems = cat.items.filter(function (masterItem) {
-      if (query && masterItem.name.toLowerCase().indexOf(query) === -1) { return false; }
-      if (lowOnly && !isLowStock(getEffectiveItem(store, masterItem))) { return false; }
-      return true;
-    });
-    if (!shownItems.length) { return; }
-    anyShown = true;
+  setItemState(matched.store, matched.masterItem.name, { qty: qty });
+  pushScanLog({ name: matched.masterItem.name, store: matched.store, qty: formatQty(qty), time: timeNow() });
 
-    var catEl = document.createElement("p");
-    catEl.className = "stock-cat";
-    catEl.textContent = cat.cat;
-    area.appendChild(catEl);
-
-    shownItems.forEach(function (masterItem) {
-      area.appendChild(buildRow(store, masterItem));
-    });
-  });
-
-  if (!anyShown) {
-    area.innerHTML += '<p class="page-note">該当する品目がありません</p>';
-  }
+  matched = null;
+  document.getElementById("match-area").style.display = "none";
+  document.getElementById("scan-instruction").textContent = "棚のバーコードをスキャンしてください";
+  focusScan();
 }
 
-render();
+document.getElementById("scan-input").addEventListener("keydown", function (e) {
+  if (e.key !== "Enter") { return; }
+  e.preventDefault();
+  var code = this.value.trim();
+  if (!code) { return; }
+  onScanCode(code);
+});
+
+document.getElementById("qty-input").addEventListener("keydown", function (e) {
+  if (e.key !== "Enter") { return; }
+  e.preventDefault();
+  commitQty();
+});
+
+renderLog();
+focusScan();
 </script>
 </body>
 </html>
