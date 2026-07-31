@@ -252,6 +252,65 @@ var TORIYAMA_DB = (function () {
     return await c.from("shift_requests").upsert(payload, { onConflict: "employee_id,work_date" }).select();
   }
 
+  // 在庫の状態（数量・発注点・発注済みフラグ）を会社の全店舗分まとめて取得
+  // （品目マスタ自体はzaiko-utils.jsのITEM_MASTERが正なので、ここでは状態だけを見る）
+  async function fetchAllInventoryState() {
+    var c = getClient();
+    var companyId = await getCompanyId();
+    if (!c || !companyId) { return []; }
+    var res = await c.from("inventory_items")
+      .select("store_id, item_code, qty, reorder_point, ordered")
+      .eq("company_id", companyId);
+    return res.data || [];
+  }
+
+  // 品目1件分の状態を書き込む（store_id + item_codeで一意。無ければ新規作成、あれば上書き）
+  async function upsertInventoryState(item) {
+    var c = getClient();
+    var companyId = await getCompanyId();
+    if (!c || !companyId) { return { error: "not_configured" }; }
+    return await c.from("inventory_items").upsert({
+      company_id: companyId,
+      store_id: item.storeId,
+      item_code: item.itemCode,
+      name: item.name,
+      category: item.category,
+      qty: item.qty,
+      reorder_point: item.reorderPoint,
+      ordered: item.ordered
+    }, { onConflict: "store_id,item_code" }).select();
+  }
+
+  // 会社の全店舗分の売上報告を取得（新しい順）
+  async function fetchAllSalesReports() {
+    var c = getClient();
+    var companyId = await getCompanyId();
+    if (!c || !companyId) { return []; }
+    var res = await c.from("sales_reports")
+      .select("id, store_id, report_date, sales_amount, guest_count, memo, weather, target_rate, cumulative_profit")
+      .eq("company_id", companyId)
+      .order("report_date", { ascending: false });
+    return res.data || [];
+  }
+
+  // 売上報告を1件追加（同じ店舗・同じ日に複数回報告してもすべて別レコードとして残す＝現状のローカル版と同じ挙動）
+  async function insertSalesReport(report) {
+    var c = getClient();
+    var companyId = await getCompanyId();
+    if (!c || !companyId) { return { error: "not_configured" }; }
+    return await c.from("sales_reports").insert({
+      company_id: companyId,
+      store_id: report.storeId,
+      report_date: report.date,
+      sales_amount: report.sales,
+      guest_count: report.guests,
+      memo: report.note,
+      weather: report.weather || null,
+      target_rate: report.targetRate,
+      cumulative_profit: report.cumulativeProfit
+    }).select();
+  }
+
   return {
     isConfigured: isConfigured,
     getClient: getClient,
@@ -269,6 +328,10 @@ var TORIYAMA_DB = (function () {
     fetchConfirmedShifts: fetchConfirmedShifts,
     bulkUpsertConfirmedShifts: bulkUpsertConfirmedShifts,
     fetchShiftRequests: fetchShiftRequests,
-    bulkUpsertShiftRequests: bulkUpsertShiftRequests
+    bulkUpsertShiftRequests: bulkUpsertShiftRequests,
+    fetchAllInventoryState: fetchAllInventoryState,
+    upsertInventoryState: upsertInventoryState,
+    fetchAllSalesReports: fetchAllSalesReports,
+    insertSalesReport: insertSalesReport
   };
 })();

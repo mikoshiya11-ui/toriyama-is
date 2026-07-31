@@ -36,6 +36,9 @@
   <a class="back" href="staff.html">スタッフメニューへ戻る</a>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="../supabase-client.js"></script>
+<script src="../shift-utils.js"></script>
 <script src="../zaiko-utils.js"></script>
 <script>
 var scanLogKey = "toriyama_zaiko_scan_log";
@@ -126,13 +129,17 @@ function commitQty() {
     return;
   }
 
-  setItemState(matched.store, matched.masterItem.name, { qty: qty });
-  pushScanLog({ name: matched.masterItem.name, store: matched.store, qty: formatQty(qty), time: timeNow() });
+  var target = matched;
+  setItemState(target.store, target.masterItem.name, { qty: qty });
+  pushScanLog({ name: target.masterItem.name, store: target.store, qty: formatQty(qty), time: timeNow() });
 
   matched = null;
   document.getElementById("match-area").style.display = "none";
   document.getElementById("scan-instruction").textContent = "棚のバーコードをスキャンしてください";
   focusScan();
+
+  // 次のスキャンをすぐ受け付けたいので、Supabaseへの反映は待たずバックグラウンドで行う
+  pushZaikoItemState(target.store, target.masterItem, target.category);
 }
 
 document.getElementById("scan-input").addEventListener("keydown", function (e) {
@@ -151,6 +158,9 @@ document.getElementById("qty-input").addEventListener("keydown", function (e) {
 
 renderLog();
 focusScan();
+// 品目マスタ自体はこのファイル内蔵のITEM_MASTERなので即スキャン可能。数量等の最新状態は
+// バックグラウンドで同期し、次にこの品目がスキャンされた時に反映されればよいため待たない。
+syncZaikoStateFromSupabase();
 </script>
 </body>
 </html>

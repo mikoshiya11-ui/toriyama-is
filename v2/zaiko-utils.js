@@ -79,3 +79,67 @@ function formatQty(n) {
   var r = Math.round(n * 100) / 100;
   return String(r);
 }
+
+/*
+  在庫状態のSupabase同期レイヤー。2026/07/31〜。
+
+  品目マスタ（名前・カテゴリ・単価・品番）は引き続きこのファイルのITEM_MASTERが正。
+  Supabaseのinventory_itemsテーブルには「その品目の現在の状態」（数量・発注点・発注済み）
+  だけを (store_id, item_code) 単位で持たせている。
+
+  使い方:
+    - ページ読み込み時に await syncZaikoStateFromSupabase() を呼ぶと、会社の全店舗分の
+      状態をSupabaseから取得してローカルキャッシュ（toriyama_zaiko_state）にマージする
+      （Supabase未設定時は何もせずfalseを返す＝従来通りローカルのみで動作）。
+    - 状態を書き込むときは、従来通り setItemState(store, name, patch) でローカルに保存した後、
+      await pushZaikoItemState(store, masterItem, category) を呼ぶとSupabaseにも反映される
+      （このファイルは必ず ../shift-utils.js より後に読み込むこと。STORE_CODE_MAPを使うため）。
+*/
+async function syncZaikoStateFromSupabase() {
+  if (typeof TORIYAMA_DB === "undefined" || !TORIYAMA_DB.isConfigured()) { return false; }
+  try {
+    var stores = await TORIYAMA_DB.fetchAllStores();
+    var storeIdToName = {};
+    stores.forEach(function (s) { storeIdToName[s.id] = s.name; });
+
+    var rows = await TORIYAMA_DB.fetchAllInventoryState();
+    var state = getZaikoState();
+    rows.forEach(function (r) {
+      var storeName = storeIdToName[r.store_id];
+      if (!storeName || !r.item_code) { return; }
+      var found = findItemByCode(r.item_code);
+      var itemName = found ? found.masterItem.name : null;
+      if (!itemName) { return; }
+      if (!state[storeName]) { state[storeName] = {}; }
+      state[storeName][itemName] = {
+        qty: (r.qty !== null && r.qty !== undefined) ? Number(r.qty) : undefined,
+        reorderPoint: (r.reorder_point !== null && r.reorder_point !== undefined) ? Number(r.reorder_point) : 0,
+        ordered: !!r.ordered
+      };
+    });
+    saveZaikoState(state);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// setItemState()でローカル保存した後に呼ぶ。現在の実効値（=直前のsetItemStateの結果）をSupabaseへ書き込む
+async function pushZaikoItemState(store, masterItem, category) {
+  if (typeof TORIYAMA_DB === "undefined" || !TORIYAMA_DB.isConfigured()) { return false; }
+  var storeCode = (typeof STORE_CODE_MAP !== "undefined") ? STORE_CODE_MAP[store] : null;
+  var storeId = storeCode ? await TORIYAMA_DB.getStoreId(storeCode) : null;
+  if (!storeId || !masterItem.code) { return false; }
+
+  var current = getEffectiveItem(store, masterItem);
+  var res = await TORIYAMA_DB.upsertInventoryState({
+    storeId: storeId,
+    itemCode: masterItem.code,
+    name: masterItem.name,
+    category: category,
+    qty: current.qty,
+    reorderPoint: current.reorderPoint,
+    ordered: current.ordered
+  });
+  return !res.error;
+}

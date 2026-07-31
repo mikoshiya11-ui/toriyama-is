@@ -150,15 +150,24 @@ create table if not exists shift_confirmed (
 -- ============================================================
 -- 5. 在庫（店舗ごと）
 -- ============================================================
+-- 2026/07/31〜: バーコードスキャン方式に変更。品目マスタ（名前・カテゴリ・単価）は
+-- zaiko-utils.jsのITEM_MASTERに引き続き静的に持たせ、Supabaseには「その品目の現在の状態」
+-- （数量・発注点・発注済みフラグ）だけを (store_id, item_code) 単位で持たせる設計にした。
+-- qty_label / status は旧設計（手動カテゴリ入力）の名残で今は未使用（NOT NULL制約は解除済み）。
 create table if not exists inventory_items (
-  id          uuid primary key default gen_random_uuid(),
-  company_id  uuid not null references companies(id) on delete cascade,
-  store_id    uuid not null references stores(id),
-  category    text not null,
-  name        text not null,
-  qty_label   text not null,   -- "3.2kg" のような表示用文字列（デモは数値厳密化しない）
-  status      text not null check (status in ('要発注', 'やや少', '十分')),
-  updated_at  timestamptz not null default now()
+  id             uuid primary key default gen_random_uuid(),
+  company_id     uuid not null references companies(id) on delete cascade,
+  store_id       uuid not null references stores(id),
+  category       text,
+  name           text not null,
+  qty_label      text,   -- 旧設計の名残（未使用）
+  status         text check (status in ('要発注', 'やや少', '十分')),  -- 旧設計の名残（未使用）
+  item_code      text,          -- 棚のバーコード品番（例: SC0001）。zaiko-utils.jsのITEM_MASTERのcodeと対応
+  qty            numeric,       -- 現在数量
+  reorder_point  numeric not null default 0,
+  ordered        boolean not null default false,
+  updated_at     timestamptz not null default now(),
+  unique (store_id, item_code)
 );
 
 -- ============================================================

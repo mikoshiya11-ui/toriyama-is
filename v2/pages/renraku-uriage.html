@@ -112,6 +112,54 @@ function saveReports(list) {
   localStorage.setItem(reportsKey, JSON.stringify(list));
 }
 
+// Supabaseから全店舗分の売上報告を取得し、ローカルキャッシュを上書きする
+// （同期に成功した時点で、以後は仮データ(fallbackReports)ではなく実データのみを表示する）
+async function syncSalesReportsFromSupabase() {
+  if (typeof TORIYAMA_DB === "undefined" || !TORIYAMA_DB.isConfigured()) { return false; }
+  try {
+    var stores = await TORIYAMA_DB.fetchAllStores();
+    var storeIdToName = {};
+    stores.forEach(function (s) { storeIdToName[s.id] = s.name; });
+
+    var rows = await TORIYAMA_DB.fetchAllSalesReports();
+    var mapped = rows.map(function (r) {
+      return {
+        store: storeIdToName[r.store_id] || "",
+        date: r.report_date,
+        sales: r.sales_amount,
+        guests: r.guest_count,
+        note: r.memo || "",
+        targetRate: (r.target_rate === null || r.target_rate === undefined) ? null : r.target_rate,
+        cumulativeProfit: (r.cumulative_profit === null || r.cumulative_profit === undefined) ? null : r.cumulative_profit,
+        weather: r.weather || ""
+      };
+    });
+    saveReports(mapped);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// 1件の売上報告をSupabaseへ書き込む（submitReport()から使用）
+async function pushSalesReportToSupabase(report) {
+  if (typeof TORIYAMA_DB === "undefined" || !TORIYAMA_DB.isConfigured()) { return false; }
+  var storeCode = (typeof STORE_CODE_MAP !== "undefined") ? STORE_CODE_MAP[report.store] : null;
+  var storeId = storeCode ? await TORIYAMA_DB.getStoreId(storeCode) : null;
+  if (!storeId) { return false; }
+  var res = await TORIYAMA_DB.insertSalesReport({
+    storeId: storeId,
+    date: report.date,
+    sales: report.sales,
+    guests: report.guests,
+    note: report.note,
+    weather: report.weather,
+    targetRate: report.targetRate,
+    cumulativeProfit: report.cumulativeProfit
+  });
+  return !res.error;
+}
+
 // その店舗・その日の確定シフトから、合計労働時間（人時）を算出する
 // （実打刻ではなく確定シフトを基にした概算。シフトが未確定の日は算出できない）
 function getLaborHours(store, dateStr) {
@@ -214,7 +262,7 @@ function renderHistory() {
   }
 }
 
-function submitReport() {
+async function submitReport() {
   var report = {
     store: document.getElementById("store").value,
     date: document.getElementById("date").value,
@@ -232,6 +280,8 @@ function submitReport() {
 
   document.getElementById("confirm-msg").style.display = "block";
   renderHistory();
+
+  await pushSalesReportToSupabase(report);
 }
 
 // 選択中の店舗・日付が属する月の確定シフトをSupabaseから同期してから再計算する
@@ -249,6 +299,7 @@ async function onStoreOrDateChange() {
 
 (async function init() {
   await syncStaffRosterFromSupabase();
+  await syncSalesReportsFromSupabase();
   await onStoreOrDateChange();
 })();
 </script>
