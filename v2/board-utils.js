@@ -46,13 +46,14 @@ async function fetchBoardPosts() {
   }
 }
 
-// 新規投稿（imageDataUrlはFileReaderで読み込んだdata URL文字列、無ければnull可）
-async function postBoardMessage(store, body, imageDataUrl) {
+// 新規投稿（imageDataUrlはFileReaderで読み込んだdata URL文字列、無ければnull可。
+// postedByは投稿者のemployee id、無ければnull可＝管理者投稿など個人が紐付かない場合）
+async function postBoardMessage(store, body, imageDataUrl, postedBy) {
   if (typeof TORIYAMA_DB === "undefined" || !TORIYAMA_DB.isConfigured()) { return { error: "not_configured" }; }
   var storeCode = (typeof STORE_CODE_MAP !== "undefined") ? STORE_CODE_MAP[store] : null;
   var storeId = storeCode ? await TORIYAMA_DB.getStoreId(storeCode) : null;
   if (!storeId) { return { error: "store_not_found" }; }
-  return await TORIYAMA_DB.insertBoardPost({ storeId: storeId, body: body, imageUrl: imageDataUrl || null });
+  return await TORIYAMA_DB.insertBoardPost({ storeId: storeId, body: body, imageUrl: imageDataUrl || null, postedBy: postedBy || null });
 }
 
 // 指定した氏名（STAFF登録済みの人）としてこの投稿を既読にする

@@ -20,7 +20,7 @@
     <option>Tripot cafe FOOD truck ②</option>
   </select>
 
-  <select class="field" id="staff-name" onchange="render()" style="width:288px;margin-bottom:12px;" disabled>
+  <select class="field" id="staff-name" onchange="updatePostState();render();" style="width:288px;margin-bottom:12px;" disabled>
     <option value="">先に店舗を選択</option>
   </select>
 
@@ -30,16 +30,10 @@
   </div>
 
   <div class="step post-form" style="width:288px;">
-    <select class="field" id="post-store">
-      <option>餃子酒場さんちょうめ</option>
-      <option>鳥料理と炭火焼 鶏やま</option>
-      <option>Tripot cafe BAKE stand</option>
-      <option>Tripot cafe FOOD truck ①</option>
-      <option>Tripot cafe FOOD truck ②</option>
-    </select>
+    <p class="page-note" style="text-align:left;margin:0 0 8px;" id="post-store-note">投稿するには、まず上で店舗とお名前を選択してください</p>
     <textarea class="field" id="post-body" placeholder="お知らせ内容を入力"></textarea>
     <input class="field" id="post-image" type="file" accept="image/*" style="padding:8px;">
-    <button class="nav-btn" style="width:100%;" id="post-btn" onclick="postNotice()">この内容で投稿する</button>
+    <button class="nav-btn" style="width:100%;" id="post-btn" onclick="postNotice()" disabled>この内容で投稿する</button>
   </div>
 
   <p class="page-note" id="board-error" style="color:#993556;display:none;"></p>
@@ -73,6 +67,20 @@ function setFilter(mode) {
   render();
 }
 
+function updatePostState() {
+  var store = currentMyStore();
+  var name = currentName();
+  var note = document.getElementById("post-store-note");
+  var btn = document.getElementById("post-btn");
+
+  if (store) {
+    note.textContent = "投稿は「" + store + "」名義になります（上で選んだ店舗）";
+  } else {
+    note.textContent = "投稿するには、まず上で店舗とお名前を選択してください";
+  }
+  btn.disabled = !(store && name);
+}
+
 function onStoreChange() {
   var store = document.getElementById("store-select").value;
   var nameSel = document.getElementById("staff-name");
@@ -96,8 +104,8 @@ function onStoreChange() {
       o.textContent = name + (isShain(name) ? "（社員）" : "（バイト）");
       nameSel.appendChild(o);
     });
-    document.getElementById("post-store").value = store;
   }
+  updatePostState();
   render();
 }
 
@@ -198,22 +206,25 @@ async function refreshBoard() {
     return;
   }
   posts = result;
+  updatePostState();
   render();
 }
 
 async function postNotice() {
-  var store = document.getElementById("post-store").value;
+  var store = currentMyStore();
+  var name = currentName();
   var body = document.getElementById("post-body").value.trim();
   var fileInput = document.getElementById("post-image");
   var file = fileInput.files && fileInput.files[0];
-  if (!body) { return; }
+  if (!store || !name || !body) { return; }
 
   var btn = document.getElementById("post-btn");
+  var postedBy = findEmployeeId(name);
 
   async function submit(imageData) {
     btn.disabled = true;
     btn.textContent = "投稿中...";
-    var res = await postBoardMessage(store, body, imageData);
+    var res = await postBoardMessage(store, body, imageData, postedBy);
     btn.disabled = false;
     btn.textContent = "この内容で投稿する";
     if (res.error) {
