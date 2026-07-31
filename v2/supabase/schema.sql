@@ -60,6 +60,11 @@ create table if not exists employees (
   role           text not null check (role in ('baito', 'shain')),
   pin            text,                 -- デモ用の平文PIN。本番はハッシュ化必須。
   active         boolean not null default true,
+  home_store_id  uuid references stores(id),  -- STAFF登録の「所属店舗」（単一店舗のみ。掛け持ちはemployee_store_accessで別途対応）
+  birth_date     date,
+  hire_date      date,
+  gender         text,                 -- 'male' / 'female' / 'other'（自由入力可）
+  photo_url      text,                 -- 顔写真。今はdata URLをそのままテキスト格納（簡易実装。件数が増えたらSupabase Storageへの移行を検討）
   created_at     timestamptz not null default now(),
   unique (company_id, employee_code)
 );

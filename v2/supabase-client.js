@@ -106,6 +106,54 @@ var TORIYAMA_DB = (function () {
     return res.data || null;
   }
 
+  // 会社の全店舗一覧を取得（id, name, code）。STAFF登録の店舗表示など、
+  // 店舗名⇔店舗IDの変換が必要な画面で使う。
+  async function fetchAllStores() {
+    var c = getClient();
+    var companyId = await getCompanyId();
+    if (!c || !companyId) { return []; }
+    var res = await c.from("stores").select("id, name, code").eq("company_id", companyId);
+    return res.data || [];
+  }
+
+  // 在籍中（active=true）の全従業員を取得（STAFF登録一覧・名前プルダウン用）
+  async function fetchAllEmployees() {
+    var c = getClient();
+    var companyId = await getCompanyId();
+    if (!c || !companyId) { return []; }
+    var res = await c.from("employees")
+      .select("id, name, role, home_store_id, birth_date, hire_date, gender, photo_url")
+      .eq("company_id", companyId)
+      .eq("active", true);
+    return res.data || [];
+  }
+
+  // 従業員を新規登録（STAFF登録画面用）
+  async function addEmployee(person) {
+    var c = getClient();
+    var companyId = await getCompanyId();
+    if (!c || !companyId) { return { error: "not_configured" }; }
+    return await c.from("employees").insert({
+      company_id: companyId,
+      name: person.name,
+      role: person.employmentType,
+      home_store_id: person.storeId || null,
+      birth_date: person.birthDate || null,
+      hire_date: person.hireDate || null,
+      gender: person.gender || null,
+      photo_url: person.photo || null,
+      active: true
+    }).select();
+  }
+
+  // 従業員を解除（打刻・勤怠の過去データを残すため、削除ではなくactive=falseにする論理削除）
+  async function deactivateEmployee(employeeId) {
+    var c = getClient();
+    var companyId = await getCompanyId();
+    if (!c || !companyId) { return { error: "not_configured" }; }
+    return await c.from("employees").update({ active: false }).eq("id", employeeId).eq("company_id", companyId);
+  }
+
   // 全ICカード台帳を取得（オフラインキャッシュ更新用）
   async function fetchAllCards() {
     var c = getClient();
@@ -139,6 +187,10 @@ var TORIYAMA_DB = (function () {
     findEmployeeByName: findEmployeeByName,
     fetchAllCards: fetchAllCards,
     registerCard: registerCard,
-    insertPunch: insertPunch
+    insertPunch: insertPunch,
+    fetchAllStores: fetchAllStores,
+    fetchAllEmployees: fetchAllEmployees,
+    addEmployee: addEmployee,
+    deactivateEmployee: deactivateEmployee
   };
 })();

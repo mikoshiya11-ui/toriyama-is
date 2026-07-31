@@ -55,6 +55,8 @@
   <a class="back" href="kintai-shift.html">シフト管理へ戻る</a>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="../supabase-client.js"></script>
 <script src="../staff-utils.js"></script>
 <script src="../shift-utils.js"></script>
 <script>
@@ -256,7 +258,10 @@ function saveDay() {
   renderCalendar();
 }
 
-renderCalendar();
+(async function init() {
+  await syncStaffRosterFromSupabase();
+  renderCalendar();
+})();
 </script>
 </body>
 </html>

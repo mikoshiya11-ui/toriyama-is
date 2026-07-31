@@ -20,6 +20,8 @@
   <a class="back" href="admin-kintai.html">勤怠管理へ戻る</a>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="../supabase-client.js"></script>
 <script src="../shift-utils.js"></script>
 <script src="../staff-utils.js"></script>
 <script>
@@ -65,7 +67,11 @@ function render() {
   });
 }
 
-render();
+(async function init() {
+  document.getElementById("status-grid").innerHTML = '<p class="page-note">読み込み中...</p>';
+  await syncStaffRosterFromSupabase();
+  render();
+})();
 </script>
 </body>
 </html>

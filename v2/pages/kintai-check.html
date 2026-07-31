@@ -91,6 +91,8 @@
   <a class="back no-print" href="kintai.html">勤怠管理へ戻る</a>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="../supabase-client.js"></script>
 <script src="../staff-utils.js"></script>
 <script src="../shift-utils.js"></script>
 <script>
@@ -319,7 +321,10 @@ function exportPDF() {
   window.print();
 }
 
-render();
+(async function init() {
+  await syncStaffRosterFromSupabase();
+  render();
+})();
 </script>
 </body>
 </html>

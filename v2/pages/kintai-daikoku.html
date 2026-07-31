@@ -110,14 +110,16 @@ function changeStoreSetup() {
   document.getElementById("setup-area").style.display = "block";
 }
 
-function startPunchScreen(store) {
+async function startPunchScreen(store) {
   STORE_NAME = store;
   STORE_CODE = STORE_CODE_MAP[store] || "";
 
   document.getElementById("setup-area").style.display = "none";
   document.getElementById("punch-area").style.display = "flex";
-  document.getElementById("store-label-note").textContent = STORE_NAME + "　お名前を選んで、出勤・退勤・休憩のボタンを押してください";
+  document.getElementById("store-label-note").textContent = STORE_NAME + "　（お名前を読み込み中...）";
 
+  await syncStaffRosterFromSupabase();
+  document.getElementById("store-label-note").textContent = STORE_NAME + "　お名前を選んで、出勤・退勤・休憩のボタンを押してください";
   populateNameSelect();
 
   document.getElementById("mode-tag").textContent = TORIYAMA_DB.isConfigured()
