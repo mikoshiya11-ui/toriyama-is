@@ -11,12 +11,14 @@
 var SHIFT_DAYS = ["月", "火", "水", "木", "金", "土", "日"];
 
 // 会社の全店舗一覧（店舗選択プルダウン等で使う固定リスト）
+// 2026/08/01〜: 鳥山社長要望により、Tripot cafe FOOD truck ①・②はスタッフ共有のため
+// 「Tripot cafe FOOD truck」1つに統合。新たに「本部」（事務員・CK）を追加。
 var STORE_LIST = [
   "餃子酒場さんちょうめ",
   "鳥料理と炭火焼 鶏やま",
   "Tripot cafe BAKE stand",
-  "Tripot cafe FOOD truck ①",
-  "Tripot cafe FOOD truck ②"
+  "Tripot cafe FOOD truck",
+  "本部"
 ];
 
 // 店舗名 → Supabase stores.code の対応（打刻端末の店舗設定などで使う）
@@ -24,8 +26,8 @@ var STORE_CODE_MAP = {
   "餃子酒場さんちょうめ": "sanchome",
   "鳥料理と炭火焼 鶏やま": "keiyama",
   "Tripot cafe BAKE stand": "tripot-bake",
-  "Tripot cafe FOOD truck ①": "tripot-truck1",
-  "Tripot cafe FOOD truck ②": "tripot-truck2"
+  "Tripot cafe FOOD truck": "tripot-truck",
+  "本部": "honbu"
 };
 
 // 指定店舗の在籍スタッフ名一覧をSTAFF登録データから取得（社員を配列の先頭に）

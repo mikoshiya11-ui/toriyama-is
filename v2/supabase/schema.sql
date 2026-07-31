@@ -276,8 +276,8 @@ cross join (values
   ('餃子酒場さんちょうめ', 'sanchome'),
   ('鳥料理と炭火焼 鶏やま', 'keiyama'),
   ('Tripot cafe BAKE stand', 'tripot-bake'),
-  ('Tripot cafe FOOD truck ①', 'tripot-truck1'),
-  ('Tripot cafe FOOD truck ②', 'tripot-truck2')
+  ('Tripot cafe FOOD truck', 'tripot-truck'),
+  ('本部', 'honbu')
 ) as s(name, code)
 where c.code = 'toriyama'
 on conflict (company_id, code) do nothing;
