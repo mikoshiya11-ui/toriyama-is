@@ -1005,6 +1005,11 @@ button {
 
 .punch-btn:hover {
   background: #f9f7f2;
+  color: #000000;
+}
+
+.punch-btn.punch-out:hover {
+  color: #7a2743;
 }
 
 .punch-btn:disabled {
