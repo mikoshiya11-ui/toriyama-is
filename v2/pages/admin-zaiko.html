@@ -37,6 +37,9 @@
   <a class="back" href="../admin.html">管理者ダッシュボードへ戻る</a>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="../supabase-client.js"></script>
+<script src="../shift-utils.js"></script>
 <script src="../zaiko-utils.js"></script>
 <script>
 function currentStore() {
@@ -65,7 +68,7 @@ function updateSummary(store) {
   el.innerHTML = "全 " + all.length + " 品目 / うち発注点以下 <span class=\"low-count\">" + lowCount + "</span> 件";
 }
 
-function buildRow(store, masterItem) {
+function buildRow(store, masterItem, category) {
   var item = getEffectiveItem(store, masterItem);
 
   var row = document.createElement("div");
@@ -118,6 +121,7 @@ function buildRow(store, masterItem) {
     lowTag.style.display = isLowStock(updated) ? "inline-block" : "none";
     costSpan.textContent = "単価" + updated.unitPrice.toLocaleString() + " / 原価" + Math.round(updated.qty * updated.unitPrice).toLocaleString();
     updateSummary(store);
+    pushZaikoItemState(store, masterItem, category);
   }
 
   qtyInput.addEventListener("change", commit);
@@ -163,7 +167,7 @@ function render() {
     area.appendChild(catEl);
 
     shownItems.forEach(function (masterItem) {
-      area.appendChild(buildRow(store, masterItem));
+      area.appendChild(buildRow(store, masterItem, cat.cat));
     });
   });
 
@@ -172,7 +176,11 @@ function render() {
   }
 }
 
-render();
+(async function init() {
+  document.getElementById("stock-area").innerHTML = '<p class="page-note">読み込み中...</p>';
+  await syncZaikoStateFromSupabase();
+  render();
+})();
 </script>
 </body>
 </html>
