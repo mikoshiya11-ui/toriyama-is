@@ -13,21 +13,14 @@
     <img src="assets/logo.png" alt="鳥やま" class="admin-hero-logo">
     <p class="admin-hero-name">TORIYAMA-iS</p>
     <p class="admin-hero-title">管理者ダッシュボード</p>
-    <span class="demo-tag" style="margin-top:16px;">テスト版・仮データ</span>
   </div>
 
   <div class="sales-today">
-    <p class="sales-today-title">本日の売上（仮データ）</p>
-    <div class="sales-grid">
-      <a class="sales-card" href="pages/renraku-uriage.html"><p class="sales-card-name">餃子酒場さんちょうめ</p><p class="sales-card-amount">¥182,400</p><p class="sales-card-month">今月 ¥4,120,000</p></a>
-      <a class="sales-card" href="pages/renraku-uriage.html"><p class="sales-card-name">鳥料理と炭火焼 鶏やま</p><p class="sales-card-amount">¥215,900</p><p class="sales-card-month">今月 ¥5,380,000</p></a>
-      <a class="sales-card" href="pages/renraku-uriage.html"><p class="sales-card-name">Tripot cafe BAKE stand</p><p class="sales-card-amount">¥163,200</p><p class="sales-card-month">今月 ¥3,860,000</p></a>
-      <a class="sales-card" href="pages/renraku-uriage.html"><p class="sales-card-name">Tripot cafe FOOD truck ①</p><p class="sales-card-amount">¥141,700</p><p class="sales-card-month">今月 ¥3,210,000</p></a>
-      <a class="sales-card" href="pages/renraku-uriage.html"><p class="sales-card-name">Tripot cafe FOOD truck ②</p><p class="sales-card-amount">¥128,900</p><p class="sales-card-month">今月 ¥2,890,000</p></a>
-    </div>
-    <div class="sales-total-row">
-      <a class="sales-total" href="pages/renraku-uriage.html"><p class="sales-card-name">本日合計</p><p class="sales-card-amount">¥832,100</p></a>
-      <a class="sales-total" href="pages/renraku-uriage.html"><p class="sales-card-name">今月合計</p><p class="sales-card-amount">¥19,460,000</p></a>
+    <p class="sales-today-title">本日の売上</p>
+    <div class="sales-grid" id="sales-grid"><p class="page-note">読み込み中...</p></div>
+    <div class="sales-total-row" id="sales-total-row" style="display:none;">
+      <a class="sales-total" href="pages/renraku-uriage.html"><p class="sales-card-name">本日合計</p><p class="sales-card-amount" id="sales-today-total">-</p></a>
+      <a class="sales-total" href="pages/renraku-uriage.html"><p class="sales-card-name">今月合計</p><p class="sales-card-amount" id="sales-month-total">-</p></a>
     </div>
   </div>
 
@@ -67,5 +60,70 @@
 
   <a class="back" href="index.html">トップへ戻る</a>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="supabase-client.js"></script>
+<script src="shift-utils.js"></script>
+<script>
+function formatYen(n) {
+  return "¥" + Math.round(n || 0).toLocaleString();
+}
+
+async function renderSalesSummary() {
+  var grid = document.getElementById("sales-grid");
+  var totalRow = document.getElementById("sales-total-row");
+
+  if (typeof TORIYAMA_DB === "undefined" || !TORIYAMA_DB.isConfigured()) {
+    grid.innerHTML = '<p class="page-note">Supabase未設定のため売上データを表示できません</p>';
+    return;
+  }
+
+  var stores = await TORIYAMA_DB.fetchAllStores();
+  var storeIdToName = {};
+  stores.forEach(function (s) { storeIdToName[s.id] = s.name; });
+
+  var reports = await TORIYAMA_DB.fetchAllSalesReports();
+
+  var now = new Date();
+  var todayStr = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
+  var monthPrefix = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
+
+  var todayByStore = {};
+  var monthByStore = {};
+  reports.forEach(function (r) {
+    var storeName = storeIdToName[r.store_id];
+    if (!storeName) { return; }
+    if (r.report_date === todayStr) {
+      todayByStore[storeName] = (todayByStore[storeName] || 0) + (r.sales_amount || 0);
+    }
+    if (r.report_date && r.report_date.indexOf(monthPrefix) === 0) {
+      monthByStore[storeName] = (monthByStore[storeName] || 0) + (r.sales_amount || 0);
+    }
+  });
+
+  grid.innerHTML = "";
+  var todayTotal = 0;
+  var monthTotal = 0;
+
+  STORE_LIST.forEach(function (store) {
+    var today = todayByStore[store] || 0;
+    var month = monthByStore[store] || 0;
+    todayTotal += today;
+    monthTotal += month;
+
+    var a = document.createElement("a");
+    a.className = "sales-card";
+    a.href = "pages/renraku-uriage.html";
+    a.innerHTML = "<p class=\"sales-card-name\">" + store + "</p><p class=\"sales-card-amount\">" + formatYen(today) + "</p><p class=\"sales-card-month\">今月 " + formatYen(month) + "</p>";
+    grid.appendChild(a);
+  });
+
+  document.getElementById("sales-today-total").textContent = formatYen(todayTotal);
+  document.getElementById("sales-month-total").textContent = formatYen(monthTotal);
+  totalRow.style.display = "flex";
+}
+
+renderSalesSummary();
+</script>
 </body>
 </html>
