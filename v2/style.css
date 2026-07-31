@@ -178,6 +178,30 @@ button {
   min-width: 760px;
 }
 
+.result-table.extra-wide {
+  min-width: 1000px;
+}
+
+.table-action-btn {
+  font-size: 10px;
+  padding: 4px 8px;
+  border: 1px solid #d3d1c7;
+  background: #ffffff;
+  color: #111111;
+  cursor: pointer;
+  margin-right: 4px;
+  white-space: nowrap;
+}
+
+.table-action-btn:hover {
+  border-color: #111111;
+}
+
+.table-action-btn.danger {
+  color: #993556;
+  border-color: #993556;
+}
+
 .tag-late {
   color: #993556;
   font-size: 11px;

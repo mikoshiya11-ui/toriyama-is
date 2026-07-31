@@ -179,15 +179,23 @@ create table if not exists inventory_items (
 -- 6. 売上報告（店舗ごと）
 -- ============================================================
 create table if not exists sales_reports (
-  id            uuid primary key default gen_random_uuid(),
-  company_id    uuid not null references companies(id) on delete cascade,
-  store_id      uuid not null references stores(id),
-  report_date   date not null,
-  sales_amount  integer not null,
-  guest_count   integer,
-  memo          text,
-  submitted_by  uuid references employees(id),
-  submitted_at  timestamptz not null default now()
+  id                 uuid primary key default gen_random_uuid(),
+  company_id         uuid not null references companies(id) on delete cascade,
+  store_id           uuid not null references stores(id),
+  report_date        date not null,
+  sales_amount       integer not null,
+  guest_count        integer,
+  memo               text,
+  -- weather/target_rate/cumulative_profitは運用途中でALTER TABLEにより追加済み（ここは実体に合わせて記載）
+  weather            text,
+  target_rate        numeric,     -- 目標達成率（%）。手入力
+  cumulative_profit  numeric,     -- 累積営業利益（円）。手入力
+  -- labor_cost/labor_hoursは鳥山社長要望（2026/08/01〜）：確定シフトからの自動概算に加え、
+  -- 実際の人件費・総労働時間を手入力できるようにする。人件費率の可視化に使う
+  labor_cost         numeric,     -- 人件費（円）。手入力
+  labor_hours        numeric,     -- 総労働時間（時間）。手入力
+  submitted_by       uuid references employees(id),
+  submitted_at       timestamptz not null default now()
 );
 
 -- ============================================================

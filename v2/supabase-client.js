@@ -288,7 +288,7 @@ var TORIYAMA_DB = (function () {
     var companyId = await getCompanyId();
     if (!c || !companyId) { return []; }
     var res = await c.from("sales_reports")
-      .select("id, store_id, report_date, sales_amount, guest_count, memo, weather, target_rate, cumulative_profit")
+      .select("id, store_id, report_date, sales_amount, guest_count, memo, weather, target_rate, cumulative_profit, labor_cost, labor_hours")
       .eq("company_id", companyId)
       .order("report_date", { ascending: false });
     return res.data || [];
@@ -308,8 +308,37 @@ var TORIYAMA_DB = (function () {
       memo: report.note,
       weather: report.weather || null,
       target_rate: report.targetRate,
-      cumulative_profit: report.cumulativeProfit
+      cumulative_profit: report.cumulativeProfit,
+      labor_cost: report.laborCost,
+      labor_hours: report.laborHours
     }).select();
+  }
+
+  // 売上報告を1件修正する（renraku-uriage.htmlの「修正」機能から使用）
+  async function updateSalesReport(id, report) {
+    var c = getClient();
+    var companyId = await getCompanyId();
+    if (!c || !companyId) { return { error: "not_configured" }; }
+    return await c.from("sales_reports").update({
+      store_id: report.storeId,
+      report_date: report.date,
+      sales_amount: report.sales,
+      guest_count: report.guests,
+      memo: report.note,
+      weather: report.weather || null,
+      target_rate: report.targetRate,
+      cumulative_profit: report.cumulativeProfit,
+      labor_cost: report.laborCost,
+      labor_hours: report.laborHours
+    }).eq("id", id).eq("company_id", companyId).select();
+  }
+
+  // 売上報告を1件削除する（renraku-uriage.htmlの「削除」機能から使用）
+  async function deleteSalesReport(id) {
+    var c = getClient();
+    var companyId = await getCompanyId();
+    if (!c || !companyId) { return { error: "not_configured" }; }
+    return await c.from("sales_reports").delete().eq("id", id).eq("company_id", companyId);
   }
 
   // 指定日（"YYYY-MM-DD"、店舗のローカル日付=日本時間として扱う）の打刻を、複数の従業員分まとめて取得
@@ -399,6 +428,8 @@ var TORIYAMA_DB = (function () {
     fetchAllInventoryState: fetchAllInventoryState,
     upsertInventoryState: upsertInventoryState,
     fetchAllSalesReports: fetchAllSalesReports,
-    insertSalesReport: insertSalesReport
+    insertSalesReport: insertSalesReport,
+    updateSalesReport: updateSalesReport,
+    deleteSalesReport: deleteSalesReport
   };
 })();

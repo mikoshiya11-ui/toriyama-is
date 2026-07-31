@@ -34,6 +34,10 @@
       <input class="field" id="targetRate" type="number" step="0.1" placeholder="目標達成率（%）">
       <input class="field" id="cumulativeProfit" type="number" placeholder="累積営業利益（円）">
     </div>
+    <div class="report-row">
+      <input class="field" id="laborCost" type="number" placeholder="人件費（円）" oninput="updatePreview()">
+      <input class="field" id="laborHours" type="number" step="0.1" placeholder="総労働時間（h・任意）" oninput="updatePreview()">
+    </div>
     <select class="field" id="weather">
       <option value="">天気を選択</option>
       <option>晴れ</option>
@@ -47,20 +51,25 @@
       <p class="report-preview-title">この内容から自動計算（表示のみ・入力不要）</p>
       <div class="report-preview-row"><span>客単価</span><span id="preview-spend">-</span></div>
       <div class="report-preview-row"><span>人時売上</span><span id="preview-plh">-</span></div>
+      <div class="report-preview-row"><span>人件費率</span><span id="preview-laborrate">-</span></div>
       <p class="report-preview-note" id="preview-note"></p>
     </div>
 
     <textarea class="field" id="note" placeholder="メモ（任意）" style="height:60px;"></textarea>
-    <button class="nav-btn" style="width:100%;" onclick="submitReport()">この内容で報告する</button>
+    <button class="nav-btn" style="width:100%;" id="submit-btn" onclick="submitReport()">この内容で報告する</button>
+    <button class="nav-btn" id="cancel-edit-btn" style="width:100%;margin-top:8px;background:#fff;color:#111111;border:1px solid #111111;display:none;" onclick="cancelEdit()">修正をやめる</button>
     <p class="confirm-msg" id="confirm-msg" style="display:none;">報告しました</p>
   </div>
 
-  <p class="page-note" style="margin:28px 0 4px;text-align:left;">直近の報告（<span id="avg-store-name"></span>の人時売上平均：<span id="avg-plh">-</span>）</p>
+  <p class="page-note" style="margin:28px 0 4px;text-align:left;">
+    直近の報告（<span id="avg-store-name"></span>の人時売上平均：<span id="avg-plh">-</span>／今月の人件費率：<span id="month-laborrate">-</span>）
+  </p>
+  <button class="nav-btn" style="width:160px;margin-bottom:10px;" onclick="exportCsv()">CSVで出力</button>
   <div class="table-scroll">
-    <table class="result-table wide" id="history-table">
+    <table class="result-table wide extra-wide" id="history-table">
       <tr>
         <th>日付</th><th>店舗</th><th>天気</th><th>売上</th><th>客数</th>
-        <th>客単価</th><th>人時売上</th><th>達成率</th><th>累積営業利益</th>
+        <th>客単価</th><th>人時売上</th><th>達成率</th><th>累積営業利益</th><th>人件費</th><th>人件費率</th><th></th>
       </tr>
       <tbody id="history-body"></tbody>
     </table>
@@ -75,6 +84,7 @@
 <script src="../shift-utils.js"></script>
 <script>
 var reportsKey = "toriyama_sales_reports";
+var editingId = null; // 修正中の報告のid（新規報告時はnull）
 var confirmedKey = "toriyama_shift_confirmed_month";
 
 var dateEl = document.getElementById("date");
@@ -116,6 +126,7 @@ async function syncSalesReportsFromSupabase() {
     var rows = await TORIYAMA_DB.fetchAllSalesReports();
     var mapped = rows.map(function (r) {
       return {
+        id: r.id,
         store: storeIdToName[r.store_id] || "",
         date: r.report_date,
         sales: r.sales_amount,
@@ -123,6 +134,8 @@ async function syncSalesReportsFromSupabase() {
         note: r.memo || "",
         targetRate: (r.target_rate === null || r.target_rate === undefined) ? null : r.target_rate,
         cumulativeProfit: (r.cumulative_profit === null || r.cumulative_profit === undefined) ? null : r.cumulative_profit,
+        laborCost: (r.labor_cost === null || r.labor_cost === undefined) ? null : r.labor_cost,
+        laborHours: (r.labor_hours === null || r.labor_hours === undefined) ? null : r.labor_hours,
         weather: r.weather || ""
       };
     });
@@ -133,12 +146,12 @@ async function syncSalesReportsFromSupabase() {
   }
 }
 
-// 1件の売上報告をSupabaseへ書き込む（submitReport()から使用）
+// 1件の売上報告をSupabaseへ書き込む（submitReport()から使用）。成功時はSupabase側のidを返す
 async function pushSalesReportToSupabase(report) {
-  if (typeof TORIYAMA_DB === "undefined" || !TORIYAMA_DB.isConfigured()) { return false; }
+  if (typeof TORIYAMA_DB === "undefined" || !TORIYAMA_DB.isConfigured()) { return null; }
   var storeCode = (typeof STORE_CODE_MAP !== "undefined") ? STORE_CODE_MAP[report.store] : null;
   var storeId = storeCode ? await TORIYAMA_DB.getStoreId(storeCode) : null;
-  if (!storeId) { return false; }
+  if (!storeId) { return null; }
   var res = await TORIYAMA_DB.insertSalesReport({
     storeId: storeId,
     date: report.date,
@@ -147,9 +160,45 @@ async function pushSalesReportToSupabase(report) {
     note: report.note,
     weather: report.weather,
     targetRate: report.targetRate,
-    cumulativeProfit: report.cumulativeProfit
+    cumulativeProfit: report.cumulativeProfit,
+    laborCost: report.laborCost,
+    laborHours: report.laborHours
+  });
+  if (res.error || !res.data || !res.data[0]) { return null; }
+  return res.data[0].id;
+}
+
+// 既存の売上報告をSupabase側で修正する（修正ボタンから使用）
+async function updateSalesReportInSupabase(id, report) {
+  if (typeof TORIYAMA_DB === "undefined" || !TORIYAMA_DB.isConfigured()) { return false; }
+  var storeCode = (typeof STORE_CODE_MAP !== "undefined") ? STORE_CODE_MAP[report.store] : null;
+  var storeId = storeCode ? await TORIYAMA_DB.getStoreId(storeCode) : null;
+  if (!storeId) { return false; }
+  var res = await TORIYAMA_DB.updateSalesReport(id, {
+    storeId: storeId,
+    date: report.date,
+    sales: report.sales,
+    guests: report.guests,
+    note: report.note,
+    weather: report.weather,
+    targetRate: report.targetRate,
+    cumulativeProfit: report.cumulativeProfit,
+    laborCost: report.laborCost,
+    laborHours: report.laborHours
   });
   return !res.error;
+}
+
+// 売上報告をSupabase側で削除する（削除ボタンから使用）
+async function deleteSalesReportFromSupabase(id) {
+  if (typeof TORIYAMA_DB === "undefined" || !TORIYAMA_DB.isConfigured()) { return false; }
+  var res = await TORIYAMA_DB.deleteSalesReport(id);
+  return !res.error;
+}
+
+// Supabase未設定時のローカルのみの一意ID発行
+function genLocalId() {
+  return "local_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
 }
 
 // その店舗・その日の確定シフトから、合計労働時間（人時）を算出する
@@ -187,25 +236,48 @@ function calcPerLaborHour(sales, laborHours) {
   return sales / laborHours;
 }
 
+// 人件費率（％）＝人件費 ÷ 売上 × 100
+function calcLaborRate(sales, laborCost) {
+  if (!sales || laborCost === null || laborCost === undefined || laborCost === "") { return null; }
+  return (laborCost / sales) * 100;
+}
+
+function formatPercent(n) {
+  if (n === null || n === undefined || isNaN(n)) { return "-"; }
+  return (Math.round(n * 10) / 10) + "%";
+}
+
 function updatePreview() {
   var store = document.getElementById("store").value;
   var date = document.getElementById("date").value;
   var sales = parseFloat(document.getElementById("sales").value);
   var guests = parseFloat(document.getElementById("guests").value);
+  var laborCostInput = document.getElementById("laborCost").value;
+  var laborCost = laborCostInput === "" ? null : parseFloat(laborCostInput);
+  var laborHoursInput = document.getElementById("laborHours").value;
 
   var spend = calcSpend(sales, guests);
-  var laborHours = getLaborHours(store, date);
+  // 総労働時間は、手入力があればそれを優先し、無ければ確定シフトから自動概算する
+  var laborHours = laborHoursInput !== "" ? parseFloat(laborHoursInput) : getLaborHours(store, date);
   var plh = calcPerLaborHour(sales, laborHours);
+  var laborRate = calcLaborRate(sales, laborCost);
 
   document.getElementById("preview-spend").textContent = spend !== null ? formatYen(spend) : "-";
   document.getElementById("preview-plh").textContent = plh !== null ? formatYen(plh) + " /人時" : "-";
+  document.getElementById("preview-laborrate").textContent = laborRate !== null ? formatPercent(laborRate) : "-";
 
   var note = document.getElementById("preview-note");
-  if (laborHours === null) {
+  if (laborHoursInput !== "") {
+    note.textContent = "※ 総労働時間は手入力値（" + laborHoursInput + "時間）を使用";
+  } else if (laborHours === null) {
     note.textContent = "※ この店舗・この日の確定シフトがまだ無いため、人時売上は計算できません";
   } else {
     note.textContent = "※ 確定シフトの合計労働時間（" + Math.round(laborHours * 10) / 10 + "時間）から算出";
   }
+}
+
+function reportLaborHours(r) {
+  return (r.laborHours !== null && r.laborHours !== undefined) ? r.laborHours : getLaborHours(r.store, r.date);
 }
 
 function renderHistory() {
@@ -220,8 +292,9 @@ function renderHistory() {
 
   sorted.forEach(function (r) {
     var spend = calcSpend(r.sales, r.guests);
-    var laborHours = getLaborHours(r.store, r.date);
+    var laborHours = reportLaborHours(r);
     var plh = calcPerLaborHour(r.sales, laborHours);
+    var laborRate = calcLaborRate(r.sales, r.laborCost);
 
     var tr = document.createElement("tr");
     tr.innerHTML =
@@ -233,17 +306,45 @@ function renderHistory() {
       "<td>" + (spend !== null ? formatYen(spend) : "-") + "</td>" +
       "<td>" + (plh !== null ? formatYen(plh) : "-") + "</td>" +
       "<td>" + (r.targetRate !== null && r.targetRate !== undefined && r.targetRate !== "" ? r.targetRate + "%" : "-") + "</td>" +
-      "<td>" + (r.cumulativeProfit !== null && r.cumulativeProfit !== undefined && r.cumulativeProfit !== "" ? formatYen(r.cumulativeProfit) : "-") + "</td>";
+      "<td>" + (r.cumulativeProfit !== null && r.cumulativeProfit !== undefined && r.cumulativeProfit !== "" ? formatYen(r.cumulativeProfit) : "-") + "</td>" +
+      "<td>" + (r.laborCost !== null && r.laborCost !== undefined ? formatYen(r.laborCost) : "-") + "</td>" +
+      "<td>" + (laborRate !== null ? formatPercent(laborRate) : "-") + "</td>";
+
+    var actionTd = document.createElement("td");
+    var editBtn = document.createElement("button");
+    editBtn.className = "table-action-btn";
+    editBtn.textContent = "修正";
+    editBtn.onclick = function () { editReport(r.id); };
+    var delBtn = document.createElement("button");
+    delBtn.className = "table-action-btn danger";
+    delBtn.textContent = "削除";
+    delBtn.onclick = function () { deleteReport(r.id); };
+    actionTd.appendChild(editBtn);
+    actionTd.appendChild(delBtn);
+    tr.appendChild(actionTd);
+
     body.appendChild(tr);
   });
 
   // 選択中の店舗の人時売上平均を出す
   var samples = [];
+  var now = new Date();
+  var monthPrefix = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
+  var monthSales = 0;
+  var monthLaborCost = 0;
+  var monthLaborCostFound = false;
   sorted.forEach(function (r) {
     if (r.store !== selectedStore) { return; }
-    var laborHours = getLaborHours(r.store, r.date);
+    var laborHours = reportLaborHours(r);
     var plh = calcPerLaborHour(r.sales, laborHours);
     if (plh !== null) { samples.push(plh); }
+    if (r.date && r.date.indexOf(monthPrefix) === 0) {
+      monthSales += (r.sales || 0);
+      if (r.laborCost !== null && r.laborCost !== undefined) {
+        monthLaborCost += r.laborCost;
+        monthLaborCostFound = true;
+      }
+    }
   });
   document.getElementById("avg-store-name").textContent = selectedStore;
   if (samples.length) {
@@ -252,10 +353,17 @@ function renderHistory() {
   } else {
     document.getElementById("avg-plh").textContent = "-";
   }
+
+  var monthRateEl = document.getElementById("month-laborrate");
+  if (monthLaborCostFound && monthSales) {
+    monthRateEl.textContent = formatPercent((monthLaborCost / monthSales) * 100);
+  } else {
+    monthRateEl.textContent = "-";
+  }
 }
 
-async function submitReport() {
-  var report = {
+function readFormReport() {
+  return {
     store: document.getElementById("store").value,
     date: document.getElementById("date").value,
     sales: parseFloat(document.getElementById("sales").value) || 0,
@@ -263,17 +371,147 @@ async function submitReport() {
     note: document.getElementById("note").value,
     targetRate: document.getElementById("targetRate").value === "" ? null : parseFloat(document.getElementById("targetRate").value),
     cumulativeProfit: document.getElementById("cumulativeProfit").value === "" ? null : parseFloat(document.getElementById("cumulativeProfit").value),
+    laborCost: document.getElementById("laborCost").value === "" ? null : parseFloat(document.getElementById("laborCost").value),
+    laborHours: document.getElementById("laborHours").value === "" ? null : parseFloat(document.getElementById("laborHours").value),
     weather: document.getElementById("weather").value
   };
+}
 
+function clearForm() {
+  document.getElementById("sales").value = "";
+  document.getElementById("guests").value = "";
+  document.getElementById("targetRate").value = "";
+  document.getElementById("cumulativeProfit").value = "";
+  document.getElementById("laborCost").value = "";
+  document.getElementById("laborHours").value = "";
+  document.getElementById("weather").value = "";
+  document.getElementById("note").value = "";
+}
+
+async function submitReport() {
+  var report = readFormReport();
   var reports = getReports();
-  reports.push(report);
-  saveReports(reports);
 
-  document.getElementById("confirm-msg").style.display = "block";
+  if (editingId) {
+    // 修正モード：既存のレコードを差し替える
+    report.id = editingId;
+    var idx = reports.findIndex(function (r) { return r.id === editingId; });
+    if (idx !== -1) { reports[idx] = report; }
+    saveReports(reports);
+
+    document.getElementById("confirm-msg").textContent = "修正しました";
+    document.getElementById("confirm-msg").style.display = "block";
+    renderHistory();
+
+    if (typeof editingId === "string" && editingId.indexOf("local_") !== 0) {
+      await updateSalesReportInSupabase(editingId, report);
+    }
+    cancelEdit();
+  } else {
+    // 新規報告：まずローカルに仮IDで保存し、Supabase保存に成功したら本物のidに差し替える
+    report.id = genLocalId();
+    reports.push(report);
+    saveReports(reports);
+
+    document.getElementById("confirm-msg").textContent = "報告しました";
+    document.getElementById("confirm-msg").style.display = "block";
+    renderHistory();
+
+    var realId = await pushSalesReportToSupabase(report);
+    if (realId) {
+      var refreshed = getReports();
+      var i = refreshed.findIndex(function (r) { return r.id === report.id; });
+      if (i !== -1) { refreshed[i].id = realId; saveReports(refreshed); }
+    }
+    clearForm();
+    updatePreview();
+  }
+}
+
+// 履歴の「修正」ボタン：フォームにその報告の内容を読み込み、修正モードに切り替える
+function editReport(id) {
+  var reports = getReports();
+  var r = reports.find(function (x) { return x.id === id; });
+  if (!r) { return; }
+
+  document.getElementById("store").value = r.store;
+  document.getElementById("date").value = r.date;
+  updateWeekday();
+  document.getElementById("sales").value = r.sales || "";
+  document.getElementById("guests").value = r.guests || "";
+  document.getElementById("targetRate").value = (r.targetRate === null || r.targetRate === undefined) ? "" : r.targetRate;
+  document.getElementById("cumulativeProfit").value = (r.cumulativeProfit === null || r.cumulativeProfit === undefined) ? "" : r.cumulativeProfit;
+  document.getElementById("laborCost").value = (r.laborCost === null || r.laborCost === undefined) ? "" : r.laborCost;
+  document.getElementById("laborHours").value = (r.laborHours === null || r.laborHours === undefined) ? "" : r.laborHours;
+  document.getElementById("weather").value = r.weather || "";
+  document.getElementById("note").value = r.note || "";
+
+  editingId = id;
+  document.getElementById("submit-btn").textContent = "この内容で修正する";
+  document.getElementById("cancel-edit-btn").style.display = "block";
+  document.getElementById("confirm-msg").style.display = "none";
+  updatePreview();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function cancelEdit() {
+  editingId = null;
+  document.getElementById("submit-btn").textContent = "この内容で報告する";
+  document.getElementById("cancel-edit-btn").style.display = "none";
+  clearForm();
+  updatePreview();
+}
+
+async function deleteReport(id) {
+  if (!confirm("この売上報告を削除しますか？元に戻せません")) { return; }
+  var reports = getReports().filter(function (r) { return r.id !== id; });
+  saveReports(reports);
   renderHistory();
 
-  await pushSalesReportToSupabase(report);
+  if (typeof id === "string" && id.indexOf("local_") !== 0) {
+    await deleteSalesReportFromSupabase(id);
+  }
+  if (editingId === id) { cancelEdit(); }
+}
+
+// 現在表示中の履歴（全店舗・全期間）をCSVとしてダウンロードする
+function exportCsv() {
+  var reports = getReports().slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+  var header = ["日付", "店舗", "天気", "売上", "客数", "客単価", "人時売上", "達成率(%)", "累積営業利益", "人件費", "人件費率(%)", "メモ"];
+  var lines = [header.join(",")];
+
+  reports.forEach(function (r) {
+    var spend = calcSpend(r.sales, r.guests);
+    var laborHours = reportLaborHours(r);
+    var plh = calcPerLaborHour(r.sales, laborHours);
+    var laborRate = calcLaborRate(r.sales, r.laborCost);
+    var row = [
+      r.date,
+      r.store,
+      r.weather || "",
+      r.sales || 0,
+      r.guests || "",
+      spend !== null ? Math.round(spend) : "",
+      plh !== null ? Math.round(plh) : "",
+      (r.targetRate === null || r.targetRate === undefined) ? "" : r.targetRate,
+      (r.cumulativeProfit === null || r.cumulativeProfit === undefined) ? "" : r.cumulativeProfit,
+      (r.laborCost === null || r.laborCost === undefined) ? "" : r.laborCost,
+      laborRate !== null ? Math.round(laborRate * 10) / 10 : "",
+      (r.note || "").replace(/"/g, '""')
+    ];
+    lines.push(row.map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(","));
+  });
+
+  var csv = "﻿" + lines.join("\r\n"); // BOM付きでExcelでも文字化けしないように
+  var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url;
+  a.download = "sales_reports_" + new Date().toISOString().slice(0, 10) + ".csv";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // 選択中の店舗・日付が属する月の確定シフトをSupabaseから同期してから再計算する
