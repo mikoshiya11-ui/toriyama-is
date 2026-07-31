@@ -9,7 +9,6 @@
 <body>
 <div class="wrap">
   <img src="../assets/logo.png" alt="鳥やま" class="logo" style="width:64px;margin-bottom:24px;">
-  <span class="demo-tag">テスト版・仮データ</span>
   <h1 class="page-title">売上報告</h1>
   <p class="page-note" style="margin-bottom:16px;">閉店後、本日の実績を入力してください</p>
 
@@ -53,7 +52,7 @@
 
     <textarea class="field" id="note" placeholder="メモ（任意）" style="height:60px;"></textarea>
     <button class="nav-btn" style="width:100%;" onclick="submitReport()">この内容で報告する</button>
-    <p class="confirm-msg" id="confirm-msg" style="display:none;">報告しました（テスト表示・この端末内のみ保存）</p>
+    <p class="confirm-msg" id="confirm-msg" style="display:none;">報告しました</p>
   </div>
 
   <p class="page-note" style="margin:28px 0 4px;text-align:left;">直近の報告（<span id="avg-store-name"></span>の人時売上平均：<span id="avg-plh">-</span>）</p>
@@ -78,13 +77,6 @@
 var reportsKey = "toriyama_sales_reports";
 var confirmedKey = "toriyama_shift_confirmed_month";
 
-// 初回のみ：過去の仮データをシード（既に保存済みならそちらを優先）
-var fallbackReports = [
-  { store: "餃子酒場さんちょうめ", date: "2026-07-23", sales: 182400, guests: 64, note: "", targetRate: null, cumulativeProfit: null, weather: "" },
-  { store: "鳥料理と炭火焼 鶏やま", date: "2026-07-24", sales: 215900, guests: 78, note: "", targetRate: null, cumulativeProfit: null, weather: "" },
-  { store: "Tripot cafe BAKE stand", date: "2026-07-25", sales: 163200, guests: 55, note: "", targetRate: null, cumulativeProfit: null, weather: "" }
-];
-
 var dateEl = document.getElementById("date");
 var today = new Date().toISOString().split("T")[0];
 dateEl.value = today;
@@ -103,9 +95,9 @@ updateWeekday();
 function getReports() {
   try {
     var raw = localStorage.getItem(reportsKey);
-    if (!raw) { return fallbackReports.slice(); }
+    if (!raw) { return []; }
     return JSON.parse(raw);
-  } catch (e) { return fallbackReports.slice(); }
+  } catch (e) { return []; }
 }
 
 function saveReports(list) {
@@ -113,7 +105,7 @@ function saveReports(list) {
 }
 
 // Supabaseから全店舗分の売上報告を取得し、ローカルキャッシュを上書きする
-// （同期に成功した時点で、以後は仮データ(fallbackReports)ではなく実データのみを表示する）
+// （2026/07/31〜: 仮データのシードは廃止。Supabase側の実データのみを表示する）
 async function syncSalesReportsFromSupabase() {
   if (typeof TORIYAMA_DB === "undefined" || !TORIYAMA_DB.isConfigured()) { return false; }
   try {
