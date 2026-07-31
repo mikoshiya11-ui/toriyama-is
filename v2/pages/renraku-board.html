@@ -9,9 +9,20 @@
 <body>
 <div class="wrap">
   <img src="../assets/logo.png" alt="鳥やま" class="logo" style="width:64px;margin-bottom:24px;">
-  <span class="demo-tag">テスト版・仮データ</span>
   <h1 class="page-title">掲示板</h1>
-  <p class="page-note" style="margin-bottom:16px;">勤務店舗：餃子酒場さんちょうめ（仮設定）</p>
+
+  <select class="field" id="store-select" onchange="onStoreChange()" style="width:288px;">
+    <option value="">店舗を選択</option>
+    <option>餃子酒場さんちょうめ</option>
+    <option>鳥料理と炭火焼 鶏やま</option>
+    <option>Tripot cafe BAKE stand</option>
+    <option>Tripot cafe FOOD truck ①</option>
+    <option>Tripot cafe FOOD truck ②</option>
+  </select>
+
+  <select class="field" id="staff-name" onchange="render()" style="width:288px;margin-bottom:12px;" disabled>
+    <option value="">先に店舗を選択</option>
+  </select>
 
   <div class="filter-tabs" style="width:288px;">
     <button class="filter-tab active" id="tab-all" onclick="setFilter('all')">会社全体</button>
@@ -23,26 +34,37 @@
       <option>餃子酒場さんちょうめ</option>
       <option>鳥料理と炭火焼 鶏やま</option>
       <option>Tripot cafe BAKE stand</option>
+      <option>Tripot cafe FOOD truck ①</option>
+      <option>Tripot cafe FOOD truck ②</option>
     </select>
     <textarea class="field" id="post-body" placeholder="お知らせ内容を入力"></textarea>
     <input class="field" id="post-image" type="file" accept="image/*" style="padding:8px;">
-    <button class="nav-btn" style="width:100%;" onclick="postNotice()">この内容で投稿する</button>
+    <button class="nav-btn" style="width:100%;" id="post-btn" onclick="postNotice()">この内容で投稿する</button>
   </div>
 
-  <div class="step" id="post-list" style="width:288px;"></div>
+  <p class="page-note" id="board-error" style="color:#993556;display:none;"></p>
+
+  <div class="step" id="post-list" style="width:288px;"><p class="page-note">読み込み中...</p></div>
 
   <a class="back" href="staff.html">スタッフメニューへ戻る</a>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="../supabase-client.js"></script>
+<script src="../shift-utils.js"></script>
+<script src="../staff-utils.js"></script>
+<script src="../board-utils.js"></script>
 <script>
-var myStore = "餃子酒場さんちょうめ";
+var posts = [];
 var filterMode = "all";
-var totalStaff = 6;
-var posts = [
-  { store: "鳥料理と炭火焼 鶏やま", time: "14:20", body: "明日の仕込み一部前倒しします。", read: 4 },
-  { store: "Tripot cafe BAKE stand", time: "11:05", body: "新人研修の日程共有です。来週火曜17時からお願いします。", read: 6 },
-  { store: "餃子酒場さんちょうめ", time: "昨日", body: "土曜のイベント用に炭を多めに用意してください。", read: 5 }
-];
+
+function currentName() {
+  return document.getElementById("staff-name").value;
+}
+
+function currentMyStore() {
+  return document.getElementById("store-select").value;
+}
 
 function setFilter(mode) {
   filterMode = mode;
@@ -51,9 +73,53 @@ function setFilter(mode) {
   render();
 }
 
+function onStoreChange() {
+  var store = document.getElementById("store-select").value;
+  var nameSel = document.getElementById("staff-name");
+  nameSel.innerHTML = "";
+
+  if (!store) {
+    nameSel.disabled = true;
+    var opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "先に店舗を選択";
+    nameSel.appendChild(opt);
+  } else {
+    nameSel.disabled = false;
+    var placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "お名前を選択";
+    nameSel.appendChild(placeholder);
+    getStoreStaffNames(store).forEach(function (name) {
+      var o = document.createElement("option");
+      o.value = name;
+      o.textContent = name + (isShain(name) ? "（社員）" : "（バイト）");
+      nameSel.appendChild(o);
+    });
+    document.getElementById("post-store").value = store;
+  }
+  render();
+}
+
+function showError(msg) {
+  var el = document.getElementById("board-error");
+  el.textContent = msg;
+  el.style.display = "block";
+  setTimeout(function () { el.style.display = "none"; }, 3000);
+}
+
+function findEmployeeId(name) {
+  var roster = (typeof getStaffRoster === "function") ? getStaffRoster() : [];
+  var p = roster.filter(function (r) { return r.name === name; })[0];
+  return p ? p.id : null;
+}
+
 function render() {
+  var myStore = currentMyStore();
+  var name = currentName();
   var list = document.getElementById("post-list");
   list.innerHTML = "";
+
   var visible = posts.filter(function (p) {
     return filterMode === "all" || p.store === myStore;
   });
@@ -63,83 +129,112 @@ function render() {
     return;
   }
 
-  for (var i = 0; i < visible.length; i++) {
-    (function (p) {
-      var card = document.createElement("div");
-      card.className = "post-card";
+  var myId = findEmployeeId(name);
 
-      var header = document.createElement("div");
-      header.className = "post-header";
-      var store = document.createElement("span");
-      store.className = "post-store";
-      store.textContent = p.store;
-      var time = document.createElement("span");
-      time.className = "post-time";
-      time.textContent = p.time;
-      header.appendChild(store);
-      header.appendChild(time);
-      card.appendChild(header);
+  visible.forEach(function (p) {
+    var card = document.createElement("div");
+    card.className = "post-card";
 
-      if (p.image) {
-        var img = document.createElement("img");
-        img.src = p.image;
-        img.style.cssText = "width:100%;border-radius:4px;margin:0 0 10px;display:block;";
-        card.appendChild(img);
+    var header = document.createElement("div");
+    header.className = "post-header";
+    var store = document.createElement("span");
+    store.className = "post-store";
+    store.textContent = p.store;
+    var time = document.createElement("span");
+    time.className = "post-time";
+    time.textContent = formatBoardTime(p.postedAt);
+    header.appendChild(store);
+    header.appendChild(time);
+    card.appendChild(header);
+
+    if (p.image) {
+      var img = document.createElement("img");
+      img.src = p.image;
+      img.style.cssText = "width:100%;border-radius:4px;margin:0 0 10px;display:block;";
+      card.appendChild(img);
+    }
+
+    var body = document.createElement("p");
+    body.className = "post-body";
+    body.textContent = p.body;
+    card.appendChild(body);
+
+    var footer = document.createElement("div");
+    footer.className = "post-footer";
+    var badge = document.createElement("span");
+    badge.className = "read-badge";
+    badge.textContent = "既読 " + p.readBy.length;
+    var alreadyRead = !!(myId && p.readBy.indexOf(myId) !== -1);
+    var btn = document.createElement("button");
+    btn.className = "read-btn" + (alreadyRead ? " done" : "");
+    btn.textContent = alreadyRead ? "既読済み" : "既読にする";
+    btn.disabled = !name;
+    btn.onclick = async function () {
+      if (!name || alreadyRead) { return; }
+      btn.disabled = true;
+      var ok = await markBoardRead(p.id, name);
+      if (ok) {
+        var idx = posts.indexOf(p);
+        if (idx !== -1 && myId) { posts[idx].readBy.push(myId); }
+        render();
+      } else {
+        btn.disabled = false;
       }
+    };
+    footer.appendChild(badge);
+    footer.appendChild(btn);
+    card.appendChild(footer);
 
-      var body = document.createElement("p");
-      body.className = "post-body";
-      body.textContent = p.body;
-      card.appendChild(body);
-
-      var footer = document.createElement("div");
-      footer.className = "post-footer";
-      var badge = document.createElement("span");
-      badge.className = "read-badge";
-      badge.textContent = "既読 " + p.read + "/" + totalStaff;
-      var btn = document.createElement("button");
-      btn.className = "read-btn" + (p.readByMe ? " done" : "");
-      btn.textContent = p.readByMe ? "既読済み" : "既読にする";
-      btn.onclick = function () {
-        if (!p.readByMe) {
-          p.readByMe = true;
-          p.read = Math.min(p.read + 1, totalStaff);
-          render();
-        }
-      };
-      footer.appendChild(badge);
-      footer.appendChild(btn);
-      card.appendChild(footer);
-
-      list.appendChild(card);
-    })(visible[i]);
-  }
+    list.appendChild(card);
+  });
 }
 
-function postNotice() {
+async function refreshBoard() {
+  await syncStaffRosterFromSupabase();
+  var result = await fetchBoardPosts();
+  if (result === null) {
+    document.getElementById("post-list").innerHTML = '<p class="page-note">Supabase未設定のため掲示板は表示できません</p>';
+    document.getElementById("post-btn").disabled = true;
+    return;
+  }
+  posts = result;
+  render();
+}
+
+async function postNotice() {
   var store = document.getElementById("post-store").value;
-  var body = document.getElementById("post-body").value;
+  var body = document.getElementById("post-body").value.trim();
   var fileInput = document.getElementById("post-image");
   var file = fileInput.files && fileInput.files[0];
   if (!body) { return; }
 
-  function addPost(imageData) {
-    posts.unshift({ store: store, time: "たった今", body: body, read: 0, readByMe: false, image: imageData || null });
+  var btn = document.getElementById("post-btn");
+
+  async function submit(imageData) {
+    btn.disabled = true;
+    btn.textContent = "投稿中...";
+    var res = await postBoardMessage(store, body, imageData);
+    btn.disabled = false;
+    btn.textContent = "この内容で投稿する";
+    if (res.error) {
+      showError("投稿に失敗しました。時間をおいて再度お試しください");
+      return;
+    }
     document.getElementById("post-body").value = "";
     fileInput.value = "";
-    render();
+    await refreshBoard();
   }
 
   if (file) {
     var reader = new FileReader();
-    reader.onload = function (e) { addPost(e.target.result); };
+    reader.onload = function (e) { submit(e.target.result); };
     reader.readAsDataURL(file);
   } else {
-    addPost(null);
+    submit(null);
   }
 }
 
-render();
+refreshBoard();
 </script>
 </body>
 </html>

@@ -13,7 +13,11 @@
     <p class="admin-hero-title" style="font-size:15px;letter-spacing:2px;">出勤状況</p>
   </div>
   <p class="page-note" style="margin-bottom:8px;text-align:center;">本日の全店舗・全スタッフの状況</p>
-  <p class="page-note" style="margin-bottom:16px;text-align:center;">※本日の出退勤状況（出勤中／退勤済）は打刻データとの連携が未対応のため、現在は登録スタッフの一覧のみ表示しています</p>
+  <p class="page-note" style="margin-bottom:16px;text-align:center;">打刻データをもとに、出勤中・休憩中・退勤済・未出勤を表示しています</p>
+
+  <div class="nav no-print" style="flex-direction:row;width:auto;gap:8px;margin:0 auto 16px;justify-content:center;">
+    <button class="nav-btn" onclick="refreshStatus()">更新</button>
+  </div>
 
   <div class="store-box-grid" id="status-grid"></div>
 
@@ -27,6 +31,43 @@
 <script>
 function employmentSuffix(person) {
   return person.employmentType === "shain" ? "（社員）" : "";
+}
+
+// employeeId -> その日の打刻一覧（punched_at昇順）
+var punchesTodayByEmployee = {};
+
+// 打刻の最後の1件から状態を判定する（in/break_end→出勤中、break_start→休憩中、out→退勤済、無し→未出勤）
+function computeStatus(employeeId) {
+  var list = employeeId ? punchesTodayByEmployee[employeeId] : null;
+  if (!list || !list.length) { return { label: "未出勤", cls: "pending" }; }
+  var last = list[list.length - 1];
+  if (last.type === "out") { return { label: "退勤済", cls: "done" }; }
+  if (last.type === "break_start") { return { label: "休憩中", cls: "onbreak" }; }
+  return { label: "出勤中", cls: "working" };
+}
+
+// 在籍スタッフ全員分の「本日の打刻」をSupabaseから取得する（Supabase未設定時は何もしない＝全員「未出勤」表示のまま）
+async function syncTodayPunches() {
+  punchesTodayByEmployee = {};
+  if (typeof TORIYAMA_DB === "undefined" || !TORIYAMA_DB.isConfigured()) { return false; }
+  var roster = getStaffRoster();
+  var employeeIds = roster.map(function (p) { return p.id; }).filter(Boolean);
+  if (!employeeIds.length) { return false; }
+
+  var now = new Date();
+  var todayStr = dateKey(now.getFullYear(), now.getMonth(), now.getDate());
+  try {
+    var rows = await TORIYAMA_DB.fetchPunchesForDate(employeeIds, todayStr);
+    var map = {};
+    rows.forEach(function (r) {
+      if (!map[r.employee_id]) { map[r.employee_id] = []; }
+      map[r.employee_id].push(r);
+    });
+    punchesTodayByEmployee = map;
+    return true;
+  } catch (e) {
+    return false;
+  }
 }
 
 function render() {
@@ -58,7 +99,8 @@ function render() {
       ordered.forEach(function (person) {
         var row = document.createElement("div");
         row.className = "status-row";
-        row.innerHTML = "<span>" + person.name + employmentSuffix(person) + "</span><span class=\"status-pill pending\">未出勤</span>";
+        var status = computeStatus(person.id);
+        row.innerHTML = "<span>" + person.name + employmentSuffix(person) + "</span><span class=\"status-pill " + status.cls + "\">" + status.label + "</span>";
         box.appendChild(row);
       });
     }
@@ -67,10 +109,15 @@ function render() {
   });
 }
 
+async function refreshStatus() {
+  await syncStaffRosterFromSupabase();
+  await syncTodayPunches();
+  render();
+}
+
 (async function init() {
   document.getElementById("status-grid").innerHTML = '<p class="page-note">読み込み中...</p>';
-  await syncStaffRosterFromSupabase();
-  render();
+  await refreshStatus();
 })();
 </script>
 </body>

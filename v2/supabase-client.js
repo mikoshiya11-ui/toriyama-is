@@ -311,6 +311,67 @@ var TORIYAMA_DB = (function () {
     }).select();
   }
 
+  // 指定日（"YYYY-MM-DD"、店舗のローカル日付=日本時間として扱う）の打刻を、複数の従業員分まとめて取得
+  // （出勤状況画面で「今日誰が出勤中か」を判定するために使用）
+  async function fetchPunchesForDate(employeeIds, dateStr) {
+    var c = getClient();
+    var companyId = await getCompanyId();
+    if (!c || !companyId || !employeeIds || !employeeIds.length) { return []; }
+    var startIso = dateStr + "T00:00:00+09:00";
+    var endDate = new Date(startIso);
+    endDate.setDate(endDate.getDate() + 1);
+    var res = await c.from("punches")
+      .select("employee_id, type, punched_at")
+      .eq("company_id", companyId)
+      .in("employee_id", employeeIds)
+      .gte("punched_at", startIso)
+      .lt("punched_at", endDate.toISOString())
+      .order("punched_at", { ascending: true });
+    return res.data || [];
+  }
+
+  // 掲示板：会社全体の投稿を新しい順に取得（直近50件）
+  async function fetchAllBoardPosts() {
+    var c = getClient();
+    var companyId = await getCompanyId();
+    if (!c || !companyId) { return []; }
+    var res = await c.from("board_posts")
+      .select("id, store_id, body, image_url, posted_at")
+      .eq("company_id", companyId)
+      .order("posted_at", { ascending: false })
+      .limit(50);
+    return res.data || [];
+  }
+
+  // 掲示板：指定した投稿群についての既読一覧を取得
+  async function fetchBoardReadsForPosts(postIds) {
+    var c = getClient();
+    if (!c || !postIds || !postIds.length) { return []; }
+    var res = await c.from("board_reads").select("post_id, employee_id").in("post_id", postIds);
+    return res.data || [];
+  }
+
+  // 掲示板：新規投稿
+  async function insertBoardPost(post) {
+    var c = getClient();
+    var companyId = await getCompanyId();
+    if (!c || !companyId) { return { error: "not_configured" }; }
+    return await c.from("board_posts").insert({
+      company_id: companyId,
+      store_id: post.storeId,
+      body: post.body,
+      image_url: post.imageUrl || null,
+      posted_by: post.postedBy || null
+    }).select();
+  }
+
+  // 掲示板：既読登録（同じ人が2回押しても1回分のまま＝post_id+employee_idで一意）
+  async function markBoardPostRead(postId, employeeId) {
+    var c = getClient();
+    if (!c) { return { error: "not_configured" }; }
+    return await c.from("board_reads").upsert({ post_id: postId, employee_id: employeeId }, { onConflict: "post_id,employee_id" }).select();
+  }
+
   return {
     isConfigured: isConfigured,
     getClient: getClient,
@@ -321,6 +382,11 @@ var TORIYAMA_DB = (function () {
     fetchAllCards: fetchAllCards,
     registerCard: registerCard,
     insertPunch: insertPunch,
+    fetchPunchesForDate: fetchPunchesForDate,
+    fetchAllBoardPosts: fetchAllBoardPosts,
+    fetchBoardReadsForPosts: fetchBoardReadsForPosts,
+    insertBoardPost: insertBoardPost,
+    markBoardPostRead: markBoardPostRead,
     fetchAllStores: fetchAllStores,
     fetchAllEmployees: fetchAllEmployees,
     addEmployee: addEmployee,

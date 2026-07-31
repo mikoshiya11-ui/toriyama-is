@@ -319,6 +319,11 @@ button {
   color: #854f0b;
 }
 
+.status-pill.onbreak {
+  background: #e8eef7;
+  color: #2c4a7c;
+}
+
 @media (max-width: 640px) {
   .admin-grid {
     grid-template-columns: 1fr;
