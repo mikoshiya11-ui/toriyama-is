@@ -15,6 +15,14 @@
     <p class="admin-hero-title">管理者ダッシュボード</p>
   </div>
 
+  <div class="board-preview" id="board-preview">
+    <div class="board-preview-head">
+      <p class="board-preview-title">社内連絡</p>
+      <a class="board-preview-link" href="pages/admin-board.html">すべて見る ›</a>
+    </div>
+    <div id="board-preview-list"><p class="page-note">読み込み中...</p></div>
+  </div>
+
   <div class="sales-today">
     <p class="sales-today-title">本日の売上</p>
     <div class="sales-grid" id="sales-grid"><p class="page-note">読み込み中...</p></div>
@@ -64,10 +72,43 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="supabase-client.js"></script>
 <script src="shift-utils.js"></script>
+<script src="staff-utils.js"></script>
+<script src="board-utils.js"></script>
 <script>
 function formatYen(n) {
   return "¥" + Math.round(n || 0).toLocaleString();
 }
+
+// トップ画面に直近の社内連絡を2〜3件だけ表示する（鳥山社長要望）
+async function renderBoardPreview() {
+  var list = document.getElementById("board-preview-list");
+  var posts = await fetchBoardPosts();
+  if (posts === null) {
+    list.innerHTML = '<p class="page-note">Supabase未設定のため社内連絡を表示できません</p>';
+    return;
+  }
+  if (!posts.length) {
+    list.innerHTML = '<p class="page-note">お知らせはまだありません</p>';
+    return;
+  }
+  list.innerHTML = "";
+  posts.slice(0, 3).forEach(function (p) {
+    var a = document.createElement("a");
+    a.className = "board-preview-item";
+    a.href = "pages/admin-board.html";
+    var head = document.createElement("div");
+    head.className = "board-preview-item-head";
+    head.innerHTML = "<span>" + p.store + "</span><span>" + formatBoardTime(p.postedAt) + "</span>";
+    var body = document.createElement("p");
+    body.className = "board-preview-item-body";
+    body.textContent = p.body;
+    a.appendChild(head);
+    a.appendChild(body);
+    list.appendChild(a);
+  });
+}
+
+renderBoardPreview();
 
 async function renderSalesSummary() {
   var grid = document.getElementById("sales-grid");

@@ -330,6 +330,69 @@ button {
   }
 }
 
+.board-preview {
+  width: 100%;
+  max-width: 626px;
+  margin: 0 auto 32px;
+}
+
+.board-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 10px;
+}
+
+.board-preview-title {
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: #888880;
+  margin: 0;
+}
+
+.board-preview-link {
+  font-size: 11px;
+  color: #111111;
+  text-decoration: none;
+  letter-spacing: 0.5px;
+}
+
+.board-preview-link:hover {
+  text-decoration: underline;
+}
+
+.board-preview-item {
+  display: block;
+  padding: 10px 14px;
+  border: 1px solid #d3d1c7;
+  background: #f9f7f2;
+  text-decoration: none;
+  color: #111111;
+  margin-bottom: 8px;
+  transition: border-color 0.15s ease;
+}
+
+.board-preview-item:hover {
+  border-color: #111111;
+}
+
+.board-preview-item-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #888880;
+  letter-spacing: 0.5px;
+  margin: 0 0 4px;
+}
+
+.board-preview-item-body {
+  font-size: 12px;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .sales-today {
   width: 100%;
   max-width: 626px;
@@ -1153,9 +1216,9 @@ button {
 }
 
 .shift-gantt-side-head {
-  flex: 0 0 92px;
-  padding: 8px;
-  font-size: 11px;
+  flex: 0 0 60px;
+  padding: 6px 4px;
+  font-size: 10px;
   color: #888880;
   display: flex;
   align-items: center;
@@ -1172,7 +1235,7 @@ button {
   text-align: center;
   font-size: 11px;
   color: #888880;
-  padding: 8px 0;
+  padding: 5px 0;
   border-right: 1px dashed #d3d1c7;
   letter-spacing: 1px;
 }
@@ -1185,7 +1248,7 @@ button {
 .shift-gantt-row {
   display: flex;
   border-bottom: 1px solid #e5e2d9;
-  min-height: 82px;
+  min-height: 54px;
   background: #ffffff;
 }
 
@@ -1194,8 +1257,8 @@ button {
 }
 
 .shift-gantt-side-cell {
-  flex: 0 0 92px;
-  padding: 8px;
+  flex: 0 0 60px;
+  padding: 6px 4px;
   border-right: 1px solid #111111;
   display: flex;
   align-items: center;
@@ -1203,8 +1266,10 @@ button {
   left: 0;
   background: inherit;
   z-index: 2;
-  font-size: 12px;
-  letter-spacing: 1px;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+  word-break: break-all;
 }
 
 .shift-gantt-track {
@@ -1231,16 +1296,16 @@ button {
 
 .shift-bar-request {
   position: absolute;
-  top: 8px;
-  height: 10px;
+  top: 5px;
+  height: 8px;
   border: 1px dashed #888880;
   pointer-events: none;
 }
 
 .shift-bar {
   position: absolute;
-  top: 26px;
-  height: 34px;
+  top: 16px;
+  height: 24px;
   background: #111111;
   color: #ffffff;
   cursor: grab;
@@ -1268,10 +1333,10 @@ button {
 .shift-bar-time-label {
   position: absolute;
   left: 0;
-  top: 62px;
+  top: 41px;
   width: 100%;
   text-align: center;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 600;
   color: #111111;
   white-space: nowrap;

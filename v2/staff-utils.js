@@ -29,6 +29,14 @@ function saveStaffRoster(list) {
   localStorage.setItem(staffRosterKey, JSON.stringify(list));
 }
 
+// 生年月日（"YYYY-MM-DD"）を「M月D日」形式に変換する（年は表示しない）
+function birthdayLabel(dateStr) {
+  if (!dateStr) { return ""; }
+  var parts = dateStr.split("-");
+  if (parts.length !== 3) { return ""; }
+  return Number(parts[1]) + "月" + Number(parts[2]) + "日";
+}
+
 // ローカルのみに追加（Supabase未設定時のフォールバック）
 function addStaffMember(person) {
   var list = getStaffRoster();

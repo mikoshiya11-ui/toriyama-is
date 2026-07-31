@@ -83,7 +83,7 @@ function staffCard(person) {
   sub.className = "staff-card-sub";
   var subParts = [];
   if (employmentLabel(person.employmentType)) { subParts.push(employmentLabel(person.employmentType)); }
-  if (person.hireDate) { subParts.push("入社 " + person.hireDate); }
+  if (birthdayLabel(person.birthDate)) { subParts.push("誕生日 " + birthdayLabel(person.birthDate)); }
   if (genderLabel(person.gender)) { subParts.push(genderLabel(person.gender)); }
   sub.textContent = subParts.join("　");
   card.appendChild(sub);

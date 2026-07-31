@@ -223,7 +223,7 @@ function renderRemoveList() {
     var subParts = [person.store];
     if (employmentLabel(person.employmentType)) { subParts.push(employmentLabel(person.employmentType)); }
     if (genderLabel(person.gender)) { subParts.push(genderLabel(person.gender)); }
-    if (person.hireDate) { subParts.push("入社 " + person.hireDate); }
+    if (birthdayLabel(person.birthDate)) { subParts.push("誕生日 " + birthdayLabel(person.birthDate)); }
     subLine.textContent = subParts.join("　/　");
     info.appendChild(nameLine);
     info.appendChild(subLine);
