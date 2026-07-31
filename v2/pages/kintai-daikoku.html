@@ -244,6 +244,7 @@ async function flushQueue() {
   var queue = getJSON(queueKey, []);
   if (!queue.length) { updateConnStatus(); return; }
   var remaining = [];
+  var syncedClientIds = [];
   for (var i = 0; i < queue.length; i++) {
     var item = queue[i];
     var employeeId = item.employeeId;
@@ -255,9 +256,22 @@ async function flushQueue() {
     }
     if (!employeeId || !item.storeId) { remaining.push(item); continue; }
     var res = await TORIYAMA_DB.insertPunch(employeeId, item.storeId, item.type, item.punchedAt, "button");
-    if (res.error) { remaining.push(item); }
+    if (res.error) {
+      remaining.push(item);
+    } else if (item.clientId) {
+      syncedClientIds.push(item.clientId);
+    }
   }
   setJSON(queueKey, remaining);
+  // 同期に成功した打刻は、ログ一覧に残っている「同期待ち」表示も消す
+  if (syncedClientIds.length) {
+    var log = getJSON(localLogKey, []);
+    log.forEach(function (entry) {
+      if (entry.clientId && syncedClientIds.indexOf(entry.clientId) !== -1) { entry.queued = false; }
+    });
+    setJSON(localLogKey, log);
+    renderLog();
+  }
   updateConnStatus();
 }
 
@@ -277,6 +291,7 @@ function updateConnStatus() {
 async function cloudPunch(name, type) {
   var typeLabel = PUNCH_TYPE_LABELS[type] || type;
   var nowIso = new Date().toISOString();
+  var clientId = Date.now() + "_" + Math.random().toString(36).slice(2);
 
   var employee = await resolveEmployee(name);
   var storeId = await getStoreId();
@@ -288,12 +303,12 @@ async function cloudPunch(name, type) {
   }
   if (queued) {
     var q = getJSON(queueKey, []);
-    q.push({ employeeId: employee ? employee.id : null, storeId: storeId, type: type, punchedAt: nowIso, name: name });
+    q.push({ employeeId: employee ? employee.id : null, storeId: storeId, type: type, punchedAt: nowIso, name: name, clientId: clientId });
     setJSON(queueKey, q);
   }
 
   var log = getJSON(localLogKey, []);
-  log.push({ name: name, type: typeLabel, time: timeNow(), queued: queued });
+  log.push({ name: name, type: typeLabel, time: timeNow(), queued: queued, clientId: clientId });
   setJSON(localLogKey, log);
 
   renderLog();

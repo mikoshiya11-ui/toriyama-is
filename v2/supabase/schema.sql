@@ -110,7 +110,9 @@ create table if not exists punches (
   type         text not null check (type in ('in', 'out', 'break_start', 'break_end')),
   punched_at   timestamptz not null,   -- 実際に打刻された時刻（オフライン時は端末側の時刻）
   synced_at    timestamptz not null default now(), -- サーバーに届いた時刻
-  source       text not null default 'card' check (source in ('card', 'offline_queue')),
+  -- 'button'は画面ボタン打刻方式へ移行した際に追加（旧チェック制約に'button'が
+  -- 含まれておらず、打刻が全件サイレントに失敗し続けるバグの原因だった）
+  source       text not null default 'card' check (source in ('card', 'offline_queue', 'button')),
   created_at   timestamptz not null default now()
 );
 create index if not exists idx_punches_employee_date on punches (employee_id, punched_at);
