@@ -12,6 +12,7 @@
   <span class="demo-tag">実棚卸データ・2026年4-5月分</span>
   <h1 class="page-title">在庫管理（管理者）</h1>
   <p class="page-note" style="margin-bottom:12px;">品目ごとに数量と発注点を設定できます。発注点を設定すると、その数量以下になった時点でスタッフ側の在庫管理にアラームが出ます。</p>
+  <a class="back" style="margin-bottom:12px;" href="admin-zaiko-qr.html">QRラベルを印刷する（スマホスキャン用）</a>
 
   <select class="field" id="store-select" onchange="render()">
     <option>餃子酒場さんちょうめ</option>
@@ -22,13 +23,26 @@
   </select>
 
   <div class="zaiko-toolrow">
-    <input class="field" id="search-input" type="text" placeholder="品目名または品番で絞り込み" oninput="render()" style="margin-bottom:0;">
+    <div class="zaiko-search-row">
+      <input class="field" id="search-input" type="text" placeholder="品目名または品番で絞り込み" oninput="render()" style="margin-bottom:0;">
+      <button type="button" class="nav-btn" style="width:auto;padding:8px 12px;white-space:nowrap;" onclick="openScanner()">📷 QRスキャン</button>
+    </div>
     <label class="zaiko-check-row">
       <input type="checkbox" id="low-only-check" onchange="render()"> アラーム品目のみ表示
     </label>
   </div>
 
   <p class="zaiko-summary" id="summary-line"></p>
+
+  <div id="qr-scan-overlay" class="qr-scan-overlay" style="display:none;">
+    <div class="qr-scan-box">
+      <p class="page-note" style="color:#fff;margin-bottom:8px;">品番のQRコードを画面内に写してください</p>
+      <video id="qr-video" class="qr-scan-video" muted></video>
+      <canvas id="qr-canvas" style="display:none;"></canvas>
+      <p class="page-note" id="qr-scan-error" style="color:#e08a9a;display:none;"></p>
+      <button type="button" class="nav-btn" style="width:100%;margin-top:12px;" onclick="closeScanner()">閉じる</button>
+    </div>
+  </div>
 
   <div class="step" id="stock-area" style="width:100%;">
     <p class="page-note">読み込み中...</p>
@@ -38,10 +52,33 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="../supabase-client.js"></script>
 <script src="../shift-utils.js"></script>
 <script src="../zaiko-utils.js"></script>
 <script>
+// スマホのカメラでQRコードをスキャンし、品番として検索欄に入れる
+function openScanner() {
+  document.getElementById("qr-scan-error").style.display = "none";
+  document.getElementById("qr-scan-overlay").style.display = "flex";
+  var video = document.getElementById("qr-video");
+  var canvas = document.getElementById("qr-canvas");
+  startQrScan(video, canvas, function (text) {
+    document.getElementById("search-input").value = text;
+    closeScanner();
+    render();
+  }, function (message) {
+    var errEl = document.getElementById("qr-scan-error");
+    errEl.textContent = message;
+    errEl.style.display = "block";
+  });
+}
+
+function closeScanner() {
+  stopQrScan();
+  document.getElementById("qr-scan-overlay").style.display = "none";
+}
+
 function currentStore() {
   return document.getElementById("store-select").value;
 }

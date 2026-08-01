@@ -14,6 +14,7 @@
 
   <div class="step" style="width:288px;">
     <input class="field" id="scan-input" type="text" placeholder="バーコードをスキャン" autocomplete="off" autofocus>
+    <button type="button" class="nav-btn" style="width:100%;margin-bottom:10px;" onclick="openScanner()">📷 スマホのカメラでQRを読み取る</button>
 
     <div id="match-area" style="display:none;">
       <div class="card-result new" style="display:block;">
@@ -32,15 +33,47 @@
     <div id="log-list"></div>
   </div>
 
+  <div id="qr-scan-overlay" class="qr-scan-overlay" style="display:none;">
+    <div class="qr-scan-box">
+      <p class="page-note" style="color:#fff;margin-bottom:8px;">品番のQRコードを画面内に写してください</p>
+      <video id="qr-video" class="qr-scan-video" muted></video>
+      <canvas id="qr-canvas" style="display:none;"></canvas>
+      <p class="page-note" id="qr-scan-error" style="color:#e08a9a;display:none;"></p>
+      <button type="button" class="nav-btn" style="width:100%;margin-top:12px;" onclick="closeScanner()">閉じる</button>
+    </div>
+  </div>
+
   <a class="back" href="zaiko-list.html" style="margin-top:16px;">一覧で確認・手入力はこちら</a>
   <a class="back" href="staff.html">スタッフメニューへ戻る</a>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script src="../supabase-client.js"></script>
 <script src="../shift-utils.js"></script>
 <script src="../zaiko-utils.js"></script>
 <script>
+// スマホのカメラでQRコードをスキャンし、バーコードスキャンと同じ処理（onScanCode）に渡す
+function openScanner() {
+  document.getElementById("qr-scan-error").style.display = "none";
+  document.getElementById("qr-scan-overlay").style.display = "flex";
+  var video = document.getElementById("qr-video");
+  var canvas = document.getElementById("qr-canvas");
+  startQrScan(video, canvas, function (text) {
+    closeScanner();
+    onScanCode(text);
+  }, function (message) {
+    var errEl = document.getElementById("qr-scan-error");
+    errEl.textContent = message;
+    errEl.style.display = "block";
+  });
+}
+
+function closeScanner() {
+  stopQrScan();
+  document.getElementById("qr-scan-overlay").style.display = "none";
+}
+
 var scanLogKey = "toriyama_zaiko_scan_log";
 var matched = null; // { store, category, masterItem }
 

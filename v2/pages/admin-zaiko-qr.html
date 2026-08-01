@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QRラベル印刷 | 鳥やま 社内システム</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="admin-wrap no-print" style="max-width:480px;">
+  <img src="../assets/logo.png" alt="鳥やま" class="logo" style="width:64px;margin-bottom:16px;">
+  <h1 class="page-title">QRラベル印刷</h1>
+  <p class="page-note" style="margin-bottom:12px;">
+    品番ごとにQRコードを表示します。印刷して棚に貼れば、スマホのカメラでも読み取れるようになります
+    （既存のバーコードラベル・ハンディスキャナーはそのまま併用できます）。
+  </p>
+
+  <select class="field" id="store-select" onchange="render()">
+    <option>餃子酒場さんちょうめ</option>
+    <option>鳥料理と炭火焼 鶏やま</option>
+    <option>Tripot cafe BAKE stand</option>
+    <option>Tripot cafe FOOD truck</option>
+    <option>本部</option>
+  </select>
+
+  <button type="button" class="nav-btn" style="width:100%;margin-bottom:16px;" onclick="window.print()">このページを印刷する</button>
+
+  <a class="back" href="admin-zaiko.html">在庫管理（管理者）へ戻る</a>
+</div>
+
+<div id="qr-print-area" class="qr-print-area"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="../shift-utils.js"></script>
+<script src="../zaiko-utils.js"></script>
+<script>
+// このページはITEM_MASTER（zaiko-utils.js内蔵の静的データ）だけを使うので、Supabase接続は不要
+function currentStore() {
+  return document.getElementById("store-select").value;
+}
+
+function render() {
+  var store = currentStore();
+  var area = document.getElementById("qr-print-area");
+  area.innerHTML = "";
+  var cats = ITEM_MASTER[store] || [];
+
+  if (!cats.length) {
+    area.innerHTML = '<p class="page-note no-print" style="width:100%;text-align:center;">この店舗の品目データはまだありません</p>';
+    return;
+  }
+
+  cats.forEach(function (cat) {
+    cat.items.forEach(function (masterItem) {
+      if (!masterItem.code) { return; }
+
+      var card = document.createElement("div");
+      card.className = "qr-label-card";
+
+      var qrDiv = document.createElement("div");
+      card.appendChild(qrDiv);
+
+      var name = document.createElement("p");
+      name.className = "qr-label-name";
+      name.textContent = masterItem.name;
+      card.appendChild(name);
+
+      var code = document.createElement("p");
+      code.className = "qr-label-num";
+      code.textContent = masterItem.code;
+      card.appendChild(code);
+
+      area.appendChild(card);
+
+      // eslint-disable-next-line no-new
+      new QRCode(qrDiv, {
+        text: masterItem.code,
+        width: 100,
+        height: 100,
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    });
+  });
+}
+
+render();
+</script>
+</body>
+</html>

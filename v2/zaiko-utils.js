@@ -149,3 +149,62 @@ async function pushZaikoItemState(store, masterItem, category) {
   });
   return !res.error;
 }
+
+// ============================================================
+// スマホのカメラでQRコードを読み取る（2026/08/01〜）
+// 品番バーコード（Inateck等のハンディスキャナー用）に加えて、スマホのカメラでも
+// スキャンできるようにする。QRコードの中身は品番バーコードと同じ文字列（例: SC0001）を
+// 想定しており、admin-zaiko-qr.htmlで印刷用のQRラベルを発行できる。
+// 利用する画面側は、このファイルより後に jsQR (CDN) を読み込んでおくこと：
+//   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+// ============================================================
+var _qrScanState = null;
+
+// videoEl/canvasElはページ側で用意した<video>/<canvas>要素。
+// 読み取れたらonDetected(text)を呼び、自動でカメラを止める。失敗時はonError(message)を呼ぶ。
+function startQrScan(videoEl, canvasEl, onDetected, onError) {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    if (onError) { onError("このブラウザはカメラ読み取りに対応していません"); }
+    return;
+  }
+  if (typeof jsQR === "undefined") {
+    if (onError) { onError("QR読み取り機能の読み込みに失敗しました（通信環境をご確認ください）"); }
+    return;
+  }
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(function (stream) {
+    _qrScanState = { stream: stream, active: true };
+    videoEl.srcObject = stream;
+    videoEl.setAttribute("playsinline", true);
+    videoEl.play();
+
+    var ctx = canvasEl.getContext("2d");
+    function tick() {
+      if (!_qrScanState || !_qrScanState.active) { return; }
+      if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
+        canvasEl.width = videoEl.videoWidth;
+        canvasEl.height = videoEl.videoHeight;
+        ctx.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
+        var imageData = ctx.getImageData(0, 0, canvasEl.width, canvasEl.height);
+        var code = jsQR(imageData.data, imageData.width, imageData.height);
+        if (code && code.data) {
+          stopQrScan();
+          onDetected(code.data);
+          return;
+        }
+      }
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }).catch(function (err) {
+    if (onError) { onError("カメラを起動できませんでした：" + (err && err.message ? err.message : err)); }
+  });
+}
+
+// カメラを止める（スキャン成功時／画面を閉じる時に呼ぶ）
+function stopQrScan() {
+  if (_qrScanState && _qrScanState.stream) {
+    _qrScanState.active = false;
+    _qrScanState.stream.getTracks().forEach(function (t) { t.stop(); });
+  }
+  _qrScanState = null;
+}
