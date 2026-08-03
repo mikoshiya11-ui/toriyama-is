@@ -30,10 +30,16 @@ var STORE_CODE_MAP = {
   "本部": "honbu"
 };
 
+// 従業員が指定店舗で勤務できるか（掛け持ち対応。stores配列が無い旧データはstoreを1件のみとして扱う）
+function staffWorksAt(person, store) {
+  var stores = person.stores || (person.store ? [person.store] : []);
+  return stores.indexOf(store) !== -1;
+}
+
 // 指定店舗の在籍スタッフ名一覧をSTAFF登録データから取得（社員を配列の先頭に）
 function getStoreStaffNames(store) {
   var roster = (typeof getStaffRoster === "function") ? getStaffRoster() : [];
-  var inStore = roster.filter(function (p) { return p.store === store; });
+  var inStore = roster.filter(function (p) { return staffWorksAt(p, store); });
   var shain = inStore.filter(function (p) { return p.employmentType === "shain"; }).map(function (p) { return p.name; });
   var baito = inStore.filter(function (p) { return p.employmentType !== "shain"; }).map(function (p) { return p.name; });
   return shain.concat(baito);

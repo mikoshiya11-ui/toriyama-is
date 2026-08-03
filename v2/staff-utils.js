@@ -59,15 +59,34 @@ async function syncStaffRosterFromSupabase() {
   if (typeof TORIYAMA_DB === "undefined" || !TORIYAMA_DB.isConfigured()) { return false; }
   try {
     var stores = await TORIYAMA_DB.fetchAllStores();
+    var access = await TORIYAMA_DB.fetchAllEmployeeStoreAccess();
+    var employees = await TORIYAMA_DB.fetchAllEmployees();
+    // いずれかがnull＝通信失敗／未接続。「0件取得できた」と区別し、
+    // 既存のローカルキャッシュを空で上書きしてしまわないようにする
+    // （2026/08/03〜: 通信が一時的に不安定な端末で登録スタッフが消えて見えるバグの原因だった）。
+    if (stores === null || access === null || employees === null) { return false; }
+
     var storeIdToName = {};
     stores.forEach(function (s) { storeIdToName[s.id] = s.name; });
 
-    var employees = await TORIYAMA_DB.fetchAllEmployees();
+    // 従業員ごとの勤務可能店舗（掛け持ち対応。2026/08/03〜）
+    var storesByEmployee = {};
+    access.forEach(function (a) {
+      var name = storeIdToName[a.store_id];
+      if (!name) { return; }
+      if (!storesByEmployee[a.employee_id]) { storesByEmployee[a.employee_id] = []; }
+      if (storesByEmployee[a.employee_id].indexOf(name) === -1) { storesByEmployee[a.employee_id].push(name); }
+    });
+
     var roster = employees.map(function (e) {
+      var homeStoreName = storeIdToName[e.home_store_id] || "";
+      // employee_store_accessに未登録（移行前データ等）の場合はhome_store_idを唯一の勤務店舗として扱う
+      var storeNames = storesByEmployee[e.id] || (homeStoreName ? [homeStoreName] : []);
       return {
         id: e.id,
         name: e.name,
-        store: storeIdToName[e.home_store_id] || "",
+        store: homeStoreName,      // 主な所属店舗（表示・後方互換用）
+        stores: storeNames,        // 勤務可能な全店舗（掛け持ち対応。フィルタはこちらを使う）
         employmentType: e.role,
         birthDate: e.birth_date || "",
         hireDate: e.hire_date || "",
@@ -83,24 +102,57 @@ async function syncStaffRosterFromSupabase() {
 }
 
 // スタッフを登録する（Supabase設定済みならSupabaseへ、未設定ならローカルのみへ）
+// person.stores: 勤務可能な店舗名の配列（掛け持ち対応。1件目を「主な所属店舗」として扱う）
 async function registerStaffMember(person) {
+  var storeList = person.stores || (person.store ? [person.store] : []);
   if (typeof TORIYAMA_DB !== "undefined" && TORIYAMA_DB.isConfigured()) {
-    var storeCode = (typeof STORE_CODE_MAP !== "undefined") ? STORE_CODE_MAP[person.store] : null;
-    var storeId = storeCode ? await TORIYAMA_DB.getStoreId(storeCode) : null;
+    var storeIds = [];
+    for (var i = 0; i < storeList.length; i++) {
+      var code = (typeof STORE_CODE_MAP !== "undefined") ? STORE_CODE_MAP[storeList[i]] : null;
+      var id = code ? await TORIYAMA_DB.getStoreId(code) : null;
+      if (id) { storeIds.push(id); }
+    }
     var res = await TORIYAMA_DB.addEmployee({
       name: person.name,
       employmentType: person.employmentType,
-      storeId: storeId,
+      storeId: storeIds[0] || null,
       birthDate: person.birthDate,
       hireDate: person.hireDate,
       gender: person.gender,
       photo: person.photo
     });
     if (res.error) { return { error: res.error }; }
+    var newId = res.data && res.data[0] && res.data[0].id;
+    if (newId && storeIds.length) { await TORIYAMA_DB.setEmployeeStoreAccess(newId, storeIds); }
     await syncStaffRosterFromSupabase();
     return { ok: true };
   }
+  person.store = storeList[0] || "";
+  person.stores = storeList;
   addStaffMember(person);
+  return { ok: true };
+}
+
+// 既存スタッフの勤務可能店舗を更新する（掛け持ち先の追加・変更用）
+async function updateStaffStores(id, storeNames) {
+  if (typeof TORIYAMA_DB !== "undefined" && TORIYAMA_DB.isConfigured()) {
+    var storeIds = [];
+    for (var i = 0; i < storeNames.length; i++) {
+      var code = (typeof STORE_CODE_MAP !== "undefined") ? STORE_CODE_MAP[storeNames[i]] : null;
+      var sid = code ? await TORIYAMA_DB.getStoreId(code) : null;
+      if (sid) { storeIds.push(sid); }
+    }
+    var res = await TORIYAMA_DB.setEmployeeStoreAccess(id, storeIds);
+    if (res.error) { return { error: res.error }; }
+    return { ok: true };
+  }
+  var list = getStaffRoster();
+  var person = list.filter(function (p) { return p.id === id; })[0];
+  if (person) {
+    person.stores = storeNames;
+    person.store = storeNames[0] || "";
+    saveStaffRoster(list);
+  }
   return { ok: true };
 }
 

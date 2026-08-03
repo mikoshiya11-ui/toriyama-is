@@ -121,7 +121,7 @@ async function renderSalesSummary() {
 
   var stores = await TORIYAMA_DB.fetchAllStores();
   var storeIdToName = {};
-  stores.forEach(function (s) { storeIdToName[s.id] = s.name; });
+  (stores || []).forEach(function (s) { storeIdToName[s.id] = s.name; });
 
   var reports = await TORIYAMA_DB.fetchAllSalesReports();
 

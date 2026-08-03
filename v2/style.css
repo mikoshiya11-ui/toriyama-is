@@ -1765,3 +1765,26 @@ button {
   color: #888880;
   margin: 0;
 }
+
+.staff-list-btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.staff-store-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  text-align: left;
+  margin-bottom: 12px;
+}
+
+.staff-store-check-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #111111;
+}

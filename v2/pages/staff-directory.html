@@ -100,7 +100,7 @@ function renderStaff() {
     return;
   }
 
-  var roster = getStaffRoster().filter(function (p) { return p.store === activeStore; });
+  var roster = getStaffRoster().filter(function (p) { return staffWorksAt(p, activeStore); });
 
   if (!roster.length) {
     area.innerHTML = '<p class="page-note">' + activeStore + 'にはまだ登録されたスタッフがいません</p>';

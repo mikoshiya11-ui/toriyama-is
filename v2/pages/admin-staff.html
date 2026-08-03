@@ -26,9 +26,8 @@
 
     <input class="field" id="in-name" type="text" placeholder="名前">
 
-    <select class="field" id="in-store">
-      <option value="">所属店舗を選択</option>
-    </select>
+    <label class="page-note" style="display:block;text-align:left;margin:4px 0 2px;">勤務店舗（掛け持ち可・複数選択可）</label>
+    <div id="in-store-checks" class="staff-store-checks"></div>
 
     <select class="field" id="in-employment">
       <option value="">雇用形態を選択</option>
@@ -72,6 +71,18 @@
   </div>
 </div>
 
+<div class="kintai-edit-overlay" id="edit-stores-overlay" style="display:none;">
+  <div class="kintai-edit-modal">
+    <p class="page-note" id="edit-stores-text" style="margin-bottom:12px;"></p>
+    <div id="edit-store-checks" class="staff-store-checks" style="margin-bottom:16px;"></div>
+    <p class="page-note" id="edit-stores-error" style="color:#993556;display:none;margin-bottom:10px;"></p>
+    <div class="nav" style="flex-direction:row;width:auto;gap:8px;justify-content:center;">
+      <button type="button" class="nav-btn" onclick="closeEditStores()">キャンセル</button>
+      <button type="button" class="nav-btn" id="edit-stores-save-btn" onclick="saveEditStores()">保存</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="../supabase-client.js"></script>
 <script src="../shift-utils.js"></script>
@@ -79,15 +90,28 @@
 <script>
 var photoDataUrl = "";
 var pendingRemoveId = null;
+var pendingEditId = null;
+
+function buildStoreChecks(container) {
+  container.innerHTML = "";
+  STORE_LIST.forEach(function (store) {
+    var label = document.createElement("label");
+    label.className = "staff-store-check-row";
+    var box = document.createElement("input");
+    box.type = "checkbox";
+    box.value = store;
+    label.appendChild(box);
+    label.appendChild(document.createTextNode(store));
+    container.appendChild(label);
+  });
+}
+
+function checkedStores(container) {
+  return Array.prototype.slice.call(container.querySelectorAll("input:checked")).map(function (b) { return b.value; });
+}
 
 function populateStoreSelect() {
-  var sel = document.getElementById("in-store");
-  STORE_LIST.forEach(function (store) {
-    var o = document.createElement("option");
-    o.value = store;
-    o.textContent = store;
-    sel.appendChild(o);
-  });
+  buildStoreChecks(document.getElementById("in-store-checks"));
 }
 
 async function switchTab(tab) {
@@ -120,7 +144,7 @@ function onPhotoChange(e) {
 
 function clearForm() {
   document.getElementById("in-name").value = "";
-  document.getElementById("in-store").value = "";
+  Array.prototype.slice.call(document.querySelectorAll("#in-store-checks input")).forEach(function (b) { b.checked = false; });
   document.getElementById("in-employment").value = "";
   document.getElementById("in-birth").value = "";
   document.getElementById("in-hire").value = "";
@@ -134,7 +158,7 @@ function clearForm() {
 
 async function doRegister() {
   var name = document.getElementById("in-name").value.trim();
-  var store = document.getElementById("in-store").value;
+  var stores = checkedStores(document.getElementById("in-store-checks"));
   var employmentType = document.getElementById("in-employment").value;
   var birthDate = document.getElementById("in-birth").value;
   var hireDate = document.getElementById("in-hire").value;
@@ -142,8 +166,8 @@ async function doRegister() {
   var errorEl = document.getElementById("register-error");
   var submitBtn = document.getElementById("register-btn");
 
-  if (!name || !store || !employmentType) {
-    errorEl.textContent = "名前・所属店舗・雇用形態は必須です";
+  if (!name || !stores.length || !employmentType) {
+    errorEl.textContent = "名前・勤務店舗（1つ以上）・雇用形態は必須です";
     errorEl.style.display = "block";
     return;
   }
@@ -153,7 +177,7 @@ async function doRegister() {
 
   var res = await registerStaffMember({
     name: name,
-    store: store,
+    stores: stores,
     employmentType: employmentType,
     birthDate: birthDate,
     hireDate: hireDate,
@@ -220,7 +244,8 @@ function renderRemoveList() {
     nameLine.textContent = person.name;
     var subLine = document.createElement("p");
     subLine.className = "staff-list-sub";
-    var subParts = [person.store];
+    var storeLabel = (person.stores && person.stores.length) ? person.stores.join("・") : person.store;
+    var subParts = [storeLabel];
     if (employmentLabel(person.employmentType)) { subParts.push(employmentLabel(person.employmentType)); }
     if (genderLabel(person.gender)) { subParts.push(genderLabel(person.gender)); }
     if (birthdayLabel(person.birthDate)) { subParts.push("誕生日 " + birthdayLabel(person.birthDate)); }
@@ -229,12 +254,24 @@ function renderRemoveList() {
     info.appendChild(subLine);
     row.appendChild(info);
 
+    var btnGroup = document.createElement("div");
+    btnGroup.className = "staff-list-btn-group";
+
+    var editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.className = "kintai-row-edit-btn";
+    editBtn.textContent = "勤務店舗を編集";
+    editBtn.onclick = function () { openEditStores(person); };
+    btnGroup.appendChild(editBtn);
+
     var btn = document.createElement("button");
     btn.type = "button";
     btn.className = "kintai-row-edit-btn";
     btn.textContent = "解除";
     btn.onclick = function () { openConfirm(person.id, person.name); };
-    row.appendChild(btn);
+    btnGroup.appendChild(btn);
+
+    row.appendChild(btnGroup);
 
     list.appendChild(row);
   });
@@ -260,6 +297,49 @@ async function confirmRemove() {
   if (res.error) {
     alert("解除に失敗しました。通信環境を確認してもう一度お試しください");
   }
+  renderRemoveList();
+}
+
+function openEditStores(person) {
+  pendingEditId = person.id;
+  document.getElementById("edit-stores-text").textContent = person.name + "さんの勤務店舗（掛け持ち可・複数選択可）";
+  document.getElementById("edit-stores-error").style.display = "none";
+  var container = document.getElementById("edit-store-checks");
+  buildStoreChecks(container);
+  var current = person.stores && person.stores.length ? person.stores : (person.store ? [person.store] : []);
+  Array.prototype.slice.call(container.querySelectorAll("input")).forEach(function (b) {
+    b.checked = current.indexOf(b.value) !== -1;
+  });
+  document.getElementById("edit-stores-overlay").style.display = "flex";
+}
+
+function closeEditStores() {
+  pendingEditId = null;
+  document.getElementById("edit-stores-overlay").style.display = "none";
+}
+
+async function saveEditStores() {
+  if (!pendingEditId) { return; }
+  var stores = checkedStores(document.getElementById("edit-store-checks"));
+  if (!stores.length) {
+    document.getElementById("edit-stores-error").textContent = "1つ以上選択してください";
+    document.getElementById("edit-stores-error").style.display = "block";
+    return;
+  }
+  var id = pendingEditId;
+  var saveBtn = document.getElementById("edit-stores-save-btn");
+  saveBtn.disabled = true;
+  saveBtn.textContent = "保存中...";
+  var res = await updateStaffStores(id, stores);
+  saveBtn.disabled = false;
+  saveBtn.textContent = "保存";
+  if (res.error) {
+    document.getElementById("edit-stores-error").textContent = "保存に失敗しました。通信環境を確認してもう一度お試しください";
+    document.getElementById("edit-stores-error").style.display = "block";
+    return;
+  }
+  closeEditStores();
+  await syncStaffRosterFromSupabase();
   renderRemoveList();
 }
 

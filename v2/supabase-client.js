@@ -108,23 +108,28 @@ var TORIYAMA_DB = (function () {
 
   // 会社の全店舗一覧を取得（id, name, code）。STAFF登録の店舗表示など、
   // 店舗名⇔店舗IDの変換が必要な画面で使う。
+  // 戻り値: 成功時は配列（0件なら[]）、クライアント未準備・通信エラー時はnull
+  // （呼び出し側でnullと[]を区別し、失敗時にローカルキャッシュを空で上書きしないようにするため）
   async function fetchAllStores() {
     var c = getClient();
     var companyId = await getCompanyId();
-    if (!c || !companyId) { return []; }
+    if (!c || !companyId) { return null; }
     var res = await c.from("stores").select("id, name, code").eq("company_id", companyId);
+    if (res.error) { return null; }
     return res.data || [];
   }
 
   // 在籍中（active=true）の全従業員を取得（STAFF登録一覧・名前プルダウン用）
+  // 戻り値: 成功時は配列（0件なら[]）、失敗時はnull（fetchAllStores同様）
   async function fetchAllEmployees() {
     var c = getClient();
     var companyId = await getCompanyId();
-    if (!c || !companyId) { return []; }
+    if (!c || !companyId) { return null; }
     var res = await c.from("employees")
       .select("id, name, role, home_store_id, birth_date, hire_date, gender, photo_url")
       .eq("company_id", companyId)
       .eq("active", true);
+    if (res.error) { return null; }
     return res.data || [];
   }
 
@@ -152,6 +157,31 @@ var TORIYAMA_DB = (function () {
     var companyId = await getCompanyId();
     if (!c || !companyId) { return { error: "not_configured" }; }
     return await c.from("employees").update({ active: false }).eq("id", employeeId).eq("company_id", companyId);
+  }
+
+  // 全従業員×勤務可能店舗の対応を取得（掛け持ち対応。2026/08/03〜）
+  // 戻り値: 成功時は配列（0件なら[]）、失敗時はnull（fetchAllStores同様）
+  async function fetchAllEmployeeStoreAccess() {
+    var c = getClient();
+    var companyId = await getCompanyId();
+    if (!c || !companyId) { return null; }
+    var res = await c.from("employee_store_access").select("employee_id, store_id").eq("company_id", companyId);
+    if (res.error) { return null; }
+    return res.data || [];
+  }
+
+  // 指定従業員の勤務可能店舗を丸ごと置き換える（登録・編集どちらでも使う）
+  async function setEmployeeStoreAccess(employeeId, storeIds) {
+    var c = getClient();
+    var companyId = await getCompanyId();
+    if (!c || !companyId) { return { error: "not_configured" }; }
+    var del = await c.from("employee_store_access").delete().eq("employee_id", employeeId);
+    if (del.error) { return { error: del.error }; }
+    var rows = (storeIds || []).filter(function (id) { return !!id; }).map(function (id) {
+      return { employee_id: employeeId, store_id: id, company_id: companyId };
+    });
+    if (!rows.length) { return { ok: true }; }
+    return await c.from("employee_store_access").insert(rows);
   }
 
   // 全ICカード台帳を取得（オフラインキャッシュ更新用）
@@ -421,6 +451,8 @@ var TORIYAMA_DB = (function () {
     fetchAllEmployees: fetchAllEmployees,
     addEmployee: addEmployee,
     deactivateEmployee: deactivateEmployee,
+    fetchAllEmployeeStoreAccess: fetchAllEmployeeStoreAccess,
+    setEmployeeStoreAccess: setEmployeeStoreAccess,
     fetchConfirmedShifts: fetchConfirmedShifts,
     bulkUpsertConfirmedShifts: bulkUpsertConfirmedShifts,
     fetchShiftRequests: fetchShiftRequests,

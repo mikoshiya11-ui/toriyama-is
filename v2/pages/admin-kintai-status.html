@@ -84,7 +84,7 @@ function render() {
     title.textContent = store;
     box.appendChild(title);
 
-    var staff = roster.filter(function (p) { return p.store === store; });
+    var staff = roster.filter(function (p) { return staffWorksAt(p, store); });
     var shain = staff.filter(function (p) { return p.employmentType === "shain"; });
     var baito = staff.filter(function (p) { return p.employmentType !== "shain"; });
     var ordered = shain.concat(baito);
