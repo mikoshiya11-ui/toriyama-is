@@ -50,6 +50,7 @@
   <p class="page-note" id="month-summary-line" style="display:none;margin-bottom:16px;"></p>
 
   <div id="bar-context-menu" class="bar-context-menu">
+    <button type="button" data-action="place">バーの設置</button>
     <button type="button" data-action="confirm">このシフトを確定</button>
     <button type="button" data-action="preview">仮置きに戻す</button>
     <button type="button" data-action="delete">削除</button>
@@ -551,23 +552,12 @@ async function refreshOverlapWarnings() {
 // ============================================================
 var drag = null;
 
+// 空欄への設置は、間違ってクリックしてしまいやすいという指摘（2026/08/03〜）に対応し、
+// 左クリックでは何もしない。右クリックメニューの「バーの設置」からのみ行う（placeBarAt参照）
 document.getElementById("gantt-inner").addEventListener("mousedown", function (e) {
   if (zoomedOut) { return; } // 月間表示は全体確認用。編集は詳細表示に戻ってから行う
 
-  var addBtn = e.target.closest('[data-role="add"]');
-  if (addBtn) {
-    takeSnapshot();
-    var track = addBtn.closest(".shift-gantt-track");
-    var reqBar = track.querySelector(".shift-bar-request");
-    // その月がまだ一度も確定されていない場合は、追加した直後は「仮置き」の見た目にする
-    // （確定する前から黒塗りの確定済みバーに見えてしまうと紛らわしいため）
-    var confirmedNow = getConfirmed();
-    var mKeyNow = monthKey(curYear, curMonthIdx);
-    var alreadyConfirmed = employeeMonthHasData(confirmedNow, addBtn.dataset.name, mKeyNow);
-    track.innerHTML = reqBar ? reqBar.outerHTML : "";
-    track.innerHTML += buildBar(addBtn.dataset.name, addBtn.dataset.datekey, 17, 22, alreadyConfirmed ? "confirmed" : "preview");
-    return;
-  }
+  if (e.target.closest('[data-role="add"]')) { return; }
 
   var handleLeft = e.target.closest('[data-role="handle-left"]');
   var handleRight = e.target.closest('[data-role="handle-right"]');
@@ -619,10 +609,27 @@ document.addEventListener("mouseup", function () {
 // 右クリックメニュー（誤クリックしやすい✕ボタンの代わり）
 // ============================================================
 var contextTargetBar = null;
+var contextTargetEmpty = null;
 
 function hideContextMenu() {
   document.getElementById("bar-context-menu").style.display = "none";
   contextTargetBar = null;
+  contextTargetEmpty = null;
+}
+
+// 空欄（＋）にバーを設置する（右クリックメニュー「バーの設置」から。2026/08/03〜）。
+// 以前は＋を左クリックした瞬間に設置していたが、誤クリックしやすいという指摘に対応し、
+// 右クリックメニューを経由しないと設置できないようにした
+function placeBarAt(addBtn) {
+  var track = addBtn.closest(".shift-gantt-track");
+  var reqBar = track.querySelector(".shift-bar-request");
+  // その月がまだ一度も確定されていない場合は、追加した直後は「仮置き」の見た目にする
+  // （確定する前から黒塗りの確定済みバーに見えてしまうと紛らわしいため）
+  var confirmedNow = getConfirmed();
+  var mKeyNow = monthKey(curYear, curMonthIdx);
+  var alreadyConfirmed = employeeMonthHasData(confirmedNow, addBtn.dataset.name, mKeyNow);
+  track.innerHTML = reqBar ? reqBar.outerHTML : "";
+  track.innerHTML += buildBar(addBtn.dataset.name, addBtn.dataset.datekey, 17, 22, alreadyConfirmed ? "confirmed" : "preview");
 }
 
 function deleteBar(barEl) {
@@ -638,10 +645,18 @@ function deleteBar(barEl) {
 document.getElementById("gantt-inner").addEventListener("contextmenu", function (e) {
   if (zoomedOut) { return; } // 月間表示は全体確認用。編集は詳細表示に戻ってから行う
   var barEl = e.target.closest(".shift-bar");
-  if (!barEl) { return; }
+  var addBtn = e.target.closest('[data-role="add"]');
+  if (!barEl && !addBtn) { return; }
   e.preventDefault();
-  contextTargetBar = barEl;
+  contextTargetBar = barEl || null;
+  contextTargetEmpty = addBtn || null;
   var menu = document.getElementById("bar-context-menu");
+  // 空欄（＋）を右クリックした時は「バーの設置」だけ、既存のバーを右クリックした時は
+  // それ以外（確定・仮置きに戻す・削除・色を変更）だけを見せる
+  Array.prototype.forEach.call(menu.querySelectorAll("button[data-action]"), function (btn) {
+    var isPlaceBtn = btn.dataset.action === "place";
+    btn.style.display = (addBtn ? isPlaceBtn : !isPlaceBtn) ? "block" : "none";
+  });
   menu.style.left = e.clientX + "px";
   menu.style.top = e.clientY + "px";
   menu.style.display = "flex";
@@ -704,7 +719,17 @@ function revertToPreview(barEl) {
 
 document.getElementById("bar-context-menu").addEventListener("click", function (e) {
   var btn = e.target.closest("button[data-action]");
-  if (!btn || !contextTargetBar) { hideContextMenu(); return; }
+  if (!btn || (!contextTargetBar && !contextTargetEmpty)) { hideContextMenu(); return; }
+  if (btn.dataset.action === "place") {
+    var targetEmpty = contextTargetEmpty;
+    hideContextMenu();
+    if (targetEmpty) {
+      takeSnapshot();
+      placeBarAt(targetEmpty);
+    }
+    return;
+  }
+  if (!contextTargetBar) { hideContextMenu(); return; }
   if (btn.dataset.action === "color") {
     hideContextMenu();
     openColorPicker();
@@ -732,7 +757,7 @@ document.addEventListener("click", function (e) {
 });
 
 document.addEventListener("contextmenu", function (e) {
-  if (!e.target.closest(".shift-bar")) { hideContextMenu(); }
+  if (!e.target.closest(".shift-bar") && !e.target.closest('[data-role="add"]')) { hideContextMenu(); }
 });
 
 async function saveConfirmed() {
