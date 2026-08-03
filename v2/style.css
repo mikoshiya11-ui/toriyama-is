@@ -598,6 +598,12 @@ button {
   letter-spacing: 1px;
 }
 
+.uriage-memo-cell {
+  max-width: 160px;
+  white-space: normal;
+  word-break: break-word;
+}
+
 .demo-tag {
   font-size: 11px;
   color: #888880;

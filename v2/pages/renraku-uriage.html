@@ -72,7 +72,7 @@
     <table class="result-table wide extra-wide" id="history-table">
       <tr>
         <th>日付</th><th>店舗</th><th>報告者</th><th>天気</th><th>売上</th><th>客数</th>
-        <th>客単価</th><th>人時売上</th><th>累計目標対比</th><th>累積営業利益</th><th>人件費</th><th>人件費率</th><th></th>
+        <th>客単価</th><th>人時売上</th><th>累計目標対比</th><th>累積営業利益</th><th>人件費</th><th>人件費率</th><th>メモ</th><th></th>
       </tr>
       <tbody id="history-body"></tbody>
     </table>
@@ -261,6 +261,13 @@ function formatYen(n) {
   return Math.round(n).toLocaleString() + "円";
 }
 
+// メモは自由入力のため、履歴表へのHTML挿入前に無害化する
+function escapeHtml(s) {
+  return String(s || "").replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+
 function calcSpend(sales, guests) {
   if (!sales || !guests) { return null; }
   return sales / guests;
@@ -344,7 +351,8 @@ function renderHistory() {
       "<td>" + (r.targetRate !== null && r.targetRate !== undefined && r.targetRate !== "" ? r.targetRate + "%" : "-") + "</td>" +
       "<td>" + (r.cumulativeProfit !== null && r.cumulativeProfit !== undefined && r.cumulativeProfit !== "" ? formatYen(r.cumulativeProfit) : "-") + "</td>" +
       "<td>" + (r.laborCost !== null && r.laborCost !== undefined ? formatYen(r.laborCost) : "-") + "</td>" +
-      "<td>" + (laborRate !== null ? formatPercent(laborRate) : "-") + "</td>";
+      "<td>" + (laborRate !== null ? formatPercent(laborRate) : "-") + "</td>" +
+      "<td class=\"uriage-memo-cell\">" + (r.note ? escapeHtml(r.note) : "-") + "</td>";
 
     var actionTd = document.createElement("td");
     var editBtn = document.createElement("button");
