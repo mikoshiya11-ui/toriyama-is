@@ -1371,6 +1371,69 @@ button {
   text-align: center;
 }
 
+/* 日付の上に表示する日別目標売上の入力行 */
+.shift-gantt-target-row {
+  display: flex;
+  border-bottom: 1px dashed #d3d1c7;
+  background: #fbf9f4;
+}
+
+.shift-gantt-target-cell {
+  text-align: center;
+  padding: 4px 2px;
+  border-right: 1px dashed #d3d1c7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #555049;
+}
+
+.shift-target-input {
+  width: 90%;
+  font-size: 11px;
+  padding: 3px 2px;
+  border: 1px solid #d3d1c7;
+  border-radius: 2px;
+  text-align: center;
+  font-family: inherit;
+  background: #ffffff;
+  color: #111111;
+}
+
+/* 全スタッフ行の下に表示する、日別・月間の人件費率 */
+.shift-gantt-laborrate-row {
+  display: flex;
+  border-top: 2px solid #111111;
+  background: #f9f7f2;
+}
+
+.shift-gantt-laborrate-cell {
+  text-align: center;
+  padding: 8px 2px;
+  border-right: 1px dashed #d3d1c7;
+  font-size: 11px;
+  font-weight: 600;
+  color: #111111;
+}
+
+.shift-gantt-inner.zoomed-out .shift-gantt-laborrate-cell,
+.shift-gantt-inner.zoomed-out .shift-gantt-target-cell {
+  font-size: 8px;
+  padding: 4px 0;
+}
+
+/* 複数店舗シフト重複の警告バッジ */
+.shift-track-warning {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 12px;
+  color: #c23b3b;
+  cursor: help;
+  z-index: 4;
+}
+
 .shift-gantt-summary-cell .sum-hours {
   font-weight: 600;
   color: #111111;
@@ -1390,6 +1453,27 @@ button {
 .shift-gantt-day-cell.weekend {
   background: rgba(17, 17, 17, 0.04);
   color: #111111;
+}
+
+/* 金土日・祝日の色分け（祝日はweekendより優先） */
+.shift-gantt-day-cell.friday {
+  background: rgba(230, 190, 40, 0.28);
+  color: #6b5200;
+}
+
+.shift-gantt-day-cell.saturday {
+  background: rgba(60, 110, 200, 0.2);
+  color: #1c3f73;
+}
+
+.shift-gantt-day-cell.sunday {
+  background: rgba(210, 60, 60, 0.2);
+  color: #8a2020;
+}
+
+.shift-gantt-day-cell.holiday {
+  background: rgba(230, 140, 40, 0.32);
+  color: #7a4000;
 }
 
 .shift-gantt-row {

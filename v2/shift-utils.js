@@ -30,12 +30,70 @@ var STORE_CODE_MAP = {
   "本部": "honbu"
 };
 
+// 店舗ごとのガントバー色（デフォルト。Supabase側のstores.colorが設定されていればそちらを優先する。
+// 2026/08/03〜: シフト管理画面で「店舗ごとに色を変える」「右クリックで変更できる」要望に対応）
+var DEFAULT_STORE_COLORS = {
+  "sanchome": "#b5482e",
+  "keiyama": "#2f6f4f",
+  "tripot-bake": "#8a6d3b",
+  "tripot-truck": "#3b5b8a",
+  "honbu": "#6b4c8a"
+};
+
+function defaultStoreColor(storeName) {
+  var code = (typeof STORE_CODE_MAP !== "undefined") ? STORE_CODE_MAP[storeName] : null;
+  return (code && DEFAULT_STORE_COLORS[code]) || "#111111";
+}
+
+var storeColorsCacheKey = "toriyama_store_colors";
+
+function readStoreColorsCache() {
+  try { return JSON.parse(localStorage.getItem(storeColorsCacheKey) || "{}"); }
+  catch (e) { return {}; }
+}
+
+function writeStoreColorsCache(map) {
+  localStorage.setItem(storeColorsCacheKey, JSON.stringify(map));
+}
+
+// Supabase側の店舗色設定（stores.color）を取得し、ローカルキャッシュ（店舗名→色）を更新する
+async function syncStoreColorsFromSupabase() {
+  if (typeof TORIYAMA_DB === "undefined" || !TORIYAMA_DB.isConfigured()) { return false; }
+  var stores = await TORIYAMA_DB.fetchAllStores();
+  if (stores === null) { return false; }
+  var map = {};
+  stores.forEach(function (s) { map[s.name] = s.color || defaultStoreColor(s.name); });
+  writeStoreColorsCache(map);
+  return true;
+}
+
+// 店舗の現在の色を取得（未設定・未同期ならデフォルト配色にフォールバック）
+function getStoreColor(storeName) {
+  var cache = readStoreColorsCache();
+  return cache[storeName] || defaultStoreColor(storeName);
+}
+
+// 店舗の色を変更する（ガントバー右クリックの色変更メニューから使用）
+async function setStoreColor(storeName, color) {
+  var cache = readStoreColorsCache();
+  cache[storeName] = color;
+  writeStoreColorsCache(cache);
+  if (typeof TORIYAMA_DB === "undefined" || !TORIYAMA_DB.isConfigured()) { return { ok: true }; }
+  var code = (typeof STORE_CODE_MAP !== "undefined") ? STORE_CODE_MAP[storeName] : null;
+  var storeId = code ? await TORIYAMA_DB.getStoreId(code) : null;
+  if (!storeId) { return { error: "store_not_found" }; }
+  var res = await TORIYAMA_DB.updateStoreColor(storeId, color);
+  if (res.error) { return { error: res.error }; }
+  return { ok: true };
+}
+
 // 雇用形態一覧（2026/08/03〜: 契約社員・役員を追加）。表示順・一覧内の並び順はこの配列順。
 var EMPLOYMENT_TYPES = [
   { value: "yakuin", label: "役員" },
   { value: "shain", label: "社員" },
   { value: "keiyaku", label: "契約社員" },
-  { value: "baito", label: "バイト" }
+  { value: "baito", label: "バイト" },
+  { value: "temp", label: "臨時" }
 ];
 
 function employmentLabel(t) {
@@ -104,6 +162,63 @@ function dateKey(year, monthIndex, day) {
 // 月キーの見出し表示用（例: "2026年8月"）
 function monthLabel(year, monthIndex) {
   return year + "年" + (monthIndex + 1) + "月";
+}
+
+/*
+  日本の祝日判定（シフト管理画面の日付BOX色分け用。2026/08/03〜）。
+  春分の日・秋分の日は国立天文台の発表を待たないと確定しないため、広く使われている
+  近似計算式（1980〜2099年で妥当）で概算している。振替休日は「前日が祝日かつ日曜」
+  の単純な1日分だけを見る簡易実装（ゴールデンウィークの祝日連続による多重振替のような
+  稀なケースは考慮していない）。実務上の目安表示であり、法的な確定情報ではない点に注意。
+*/
+function nthMondayOfMonth(year, monthIndex, n) {
+  var firstDow = new Date(year, monthIndex, 1).getDay(); // 0=日,1=月,...
+  var firstMonday = 1 + ((8 - firstDow) % 7);
+  return firstMonday + (n - 1) * 7;
+}
+
+function vernalEquinoxDay(year) {
+  return Math.floor(20.8431 + 0.242194 * (year - 1980)) - Math.floor((year - 1980) / 4);
+}
+
+function autumnalEquinoxDay(year) {
+  return Math.floor(23.2488 + 0.242194 * (year - 1980)) - Math.floor((year - 1980) / 4);
+}
+
+// 振替休日を含まない「元々の」祝日名（無ければnull）
+function fixedHolidayName(year, monthIndex, day) {
+  if (monthIndex === 0 && day === 1) { return "元日"; }
+  if (monthIndex === 0 && day === nthMondayOfMonth(year, 0, 2)) { return "成人の日"; }
+  if (monthIndex === 1 && day === 11) { return "建国記念の日"; }
+  if (monthIndex === 1 && day === 23) { return "天皇誕生日"; }
+  if (monthIndex === 2 && day === vernalEquinoxDay(year)) { return "春分の日"; }
+  if (monthIndex === 3 && day === 29) { return "昭和の日"; }
+  if (monthIndex === 4 && day === 3) { return "憲法記念日"; }
+  if (monthIndex === 4 && day === 4) { return "みどりの日"; }
+  if (monthIndex === 4 && day === 5) { return "こどもの日"; }
+  if (monthIndex === 6 && day === nthMondayOfMonth(year, 6, 3)) { return "海の日"; }
+  if (monthIndex === 7 && day === 11) { return "山の日"; }
+  if (monthIndex === 8 && day === nthMondayOfMonth(year, 8, 3)) { return "敬老の日"; }
+  if (monthIndex === 8 && day === autumnalEquinoxDay(year)) { return "秋分の日"; }
+  if (monthIndex === 9 && day === nthMondayOfMonth(year, 9, 2)) { return "スポーツの日"; }
+  if (monthIndex === 10 && day === 3) { return "文化の日"; }
+  if (monthIndex === 10 && day === 23) { return "勤労感謝の日"; }
+  return null;
+}
+
+// 振替休日込みの祝日名（祝日でなければnull）
+function japaneseHolidayName(year, monthIndex, day) {
+  var direct = fixedHolidayName(year, monthIndex, day);
+  if (direct) { return direct; }
+  var prev = new Date(year, monthIndex, day - 1);
+  var prevIsHoliday = !!fixedHolidayName(prev.getFullYear(), prev.getMonth(), prev.getDate());
+  var prevIsSunday = prev.getDay() === 0;
+  if (prevIsHoliday && prevIsSunday) { return "振替休日"; }
+  return null;
+}
+
+function isJapaneseHoliday(year, monthIndex, day) {
+  return !!japaneseHolidayName(year, monthIndex, day);
 }
 
 function labelToHour(label) {
@@ -312,4 +427,114 @@ async function pushSingleShiftRequest(store, name, dateKey, entry) {
     isFree: !!(entry.requested && entry.free)
   }]);
   return !res.error;
+}
+
+/*
+  日別目標売上（シフト管理画面・日付の上の入力欄）のSupabase同期レイヤー。2026/08/03〜
+  localStorageのキーは "toriyama_sales_targets_month"、構造は { 店舗名: { "YYYY-MM-DD": 金額 } }。
+*/
+var salesTargetsStorageKey = "toriyama_sales_targets_month";
+
+function readSalesTargetsCache() {
+  try { return JSON.parse(localStorage.getItem(salesTargetsStorageKey) || "{}"); }
+  catch (e) { return {}; }
+}
+
+function writeSalesTargetsCache(data) {
+  localStorage.setItem(salesTargetsStorageKey, JSON.stringify(data));
+}
+
+// 指定店舗・指定年月の目標売上をSupabaseから取得し、ローカルキャッシュにマージする
+async function syncSalesTargetsFromSupabase(store, year, monthIdx) {
+  if (typeof TORIYAMA_DB === "undefined" || !TORIYAMA_DB.isConfigured()) { return false; }
+  if (!store) { return false; }
+  var storeCode = (typeof STORE_CODE_MAP !== "undefined") ? STORE_CODE_MAP[store] : null;
+  var storeId = storeCode ? await TORIYAMA_DB.getStoreId(storeCode) : null;
+  if (!storeId) { return false; }
+
+  var rows = await TORIYAMA_DB.fetchSalesTargets(storeId, year, monthIdx + 1);
+  if (rows === null) { return false; }
+  var cache = readSalesTargetsCache();
+  if (!cache[store]) { cache[store] = {}; }
+  rows.forEach(function (r) { cache[store][r.work_date] = r.target_amount; });
+  writeSalesTargetsCache(cache);
+  return true;
+}
+
+// 1日分の目標売上を保存する（シフト管理画面の入力欄から使用）。
+// amountがnull（欄を空にした場合）はSupabase側（NOT NULL制約）へは送らず、ローカル表示だけを空に戻す
+async function pushSalesTarget(store, dateKey, amount) {
+  var cache = readSalesTargetsCache();
+  if (!cache[store]) { cache[store] = {}; }
+  cache[store][dateKey] = amount;
+  writeSalesTargetsCache(cache);
+  if (amount === null) { return true; }
+  if (typeof TORIYAMA_DB === "undefined" || !TORIYAMA_DB.isConfigured()) { return true; }
+  var storeCode = (typeof STORE_CODE_MAP !== "undefined") ? STORE_CODE_MAP[store] : null;
+  var storeId = storeCode ? await TORIYAMA_DB.getStoreId(storeCode) : null;
+  if (!storeId) { return false; }
+  var res = await TORIYAMA_DB.upsertSalesTarget(storeId, dateKey, amount);
+  return !res.error;
+}
+
+function getSalesTarget(store, dateKey) {
+  var cache = readSalesTargetsCache();
+  return (cache[store] && cache[store][dateKey] !== undefined && cache[store][dateKey] !== null) ? cache[store][dateKey] : null;
+}
+
+// 店舗ID⇔店舗名の対応表を作る（複数店舗シフト重複警告で、Supabaseから返るstore_idを
+// 店舗名に変換するために使う。全店舗分をキャッシュ済みのgetStoreIdで解決するので通信は最小限）
+async function buildStoreIdNameMap() {
+  var map = {};
+  for (var i = 0; i < STORE_LIST.length; i++) {
+    var name = STORE_LIST[i];
+    var code = STORE_CODE_MAP[name];
+    var id = code ? await TORIYAMA_DB.getStoreId(code) : null;
+    if (id) { map[id] = name; }
+  }
+  return map;
+}
+
+/*
+  複数店舗シフト重複警告（2026/08/03〜）:
+  指定した従業員名たちについて、全店舗分の確定シフトを店舗を絞らずに取得する。
+  通常のsyncConfirmedShiftsFromSupabase（今見ている店舗の分だけをローカルキャッシュに反映）
+  とは別物で、ローカルキャッシュには書き込まず、その場の警告表示にのみ使う。
+  戻り値: { 氏名: { "YYYY-MM-DD": [{ storeId, storeName, start, end }, ...] } }（休みの日は含めない）
+*/
+async function fetchCrossStoreConfirmedShifts(names, year, monthIdx) {
+  if (typeof TORIYAMA_DB === "undefined" || !TORIYAMA_DB.isConfigured()) { return null; }
+  var idToName = {};
+  names.forEach(function (n) {
+    var id = findEmployeeIdByName(n);
+    if (id) { idToName[id] = n; }
+  });
+  var employeeIds = Object.keys(idToName);
+  if (!employeeIds.length) { return {}; }
+
+  var storeIdToName = await buildStoreIdNameMap();
+  var rows = await TORIYAMA_DB.fetchConfirmedShifts(employeeIds, year, monthIdx + 1);
+  var result = {};
+  rows.forEach(function (r) {
+    if (r.is_off) { return; }
+    var name = idToName[r.employee_id];
+    if (!name) { return; }
+    if (!result[name]) { result[name] = {}; }
+    if (!result[name][r.work_date]) { result[name][r.work_date] = []; }
+    result[name][r.work_date].push({
+      storeId: r.store_id,
+      storeName: storeIdToName[r.store_id] || "他店舗",
+      start: hmsToLabel(r.start_time),
+      end: hmsToLabel(r.end_time)
+    });
+  });
+  return result;
+}
+
+// 2つの時間帯（"17:00"形式）が重なっているかどうか
+function timeRangesOverlap(startA, endA, startB, endB) {
+  var a1 = labelToHour(startA), a2 = labelToHour(endA);
+  var b1 = labelToHour(startB), b2 = labelToHour(endB);
+  if (a1 === null || a2 === null || b1 === null || b2 === null) { return false; }
+  return a1 < b2 && b1 < a2;
 }

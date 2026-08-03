@@ -46,12 +46,19 @@
     </div>
   </div>
 
+  <p class="page-note" id="month-summary-line" style="display:none;margin-bottom:16px;"></p>
+
   <div id="bar-context-menu" class="bar-context-menu">
     <button type="button" data-action="preview">仮置きに戻す</button>
     <button type="button" data-action="delete">削除</button>
+    <button type="button" data-action="color">色を変更...</button>
   </div>
 
   <div id="empty-state" class="page-note" style="display:none;margin-bottom:20px;">この店舗のスタッフはまだ登録されていません（テスト版）</div>
+
+  <div class="nav" style="flex-direction:row;width:240px;gap:8px;margin:0 auto 8px;">
+    <button class="nav-btn" style="flex:1;" onclick="addTempStaff()">＋臨時スタッフを追加</button>
+  </div>
 
   <div class="nav" style="flex-direction:row;width:240px;gap:8px;margin:0 auto 8px;">
     <button class="nav-btn" style="flex:1;" id="undo-btn" onclick="undoLast()" disabled>元に戻す</button>
@@ -60,6 +67,17 @@
   <p class="confirm-msg" id="confirm-msg" style="display:none;">確定しました（テスト表示・この端末内のみ保存）</p>
 
   <a class="back" href="../admin.html">管理者ダッシュボードへ戻る</a>
+</div>
+
+<div class="kintai-edit-overlay" id="color-overlay" style="display:none;">
+  <div class="kintai-edit-modal" style="max-width:260px;text-align:center;">
+    <p class="page-note" id="color-overlay-text" style="margin-bottom:14px;"></p>
+    <input type="color" id="store-color-input" style="width:100%;height:48px;border:1px solid #111111;margin-bottom:16px;">
+    <div class="nav" style="flex-direction:row;width:auto;gap:8px;justify-content:center;">
+      <button type="button" class="nav-btn" onclick="closeColorPicker()">キャンセル</button>
+      <button type="button" class="nav-btn" onclick="saveStoreColorFromPicker()">保存</button>
+    </div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -71,6 +89,7 @@ var DETAIL_DAY_W = 100; // 鳥山社長要望：日付間隔を詰めて全体�
 var MONTH_MIN_DAY_W = 16; // 月間表示で日付が判読できる最低限の幅
 var zoomedOut = false;
 var MIN_DURATION = 1; // 時間
+var currentStoreColor = "#111111"; // 今表示中の店舗のガントバー色（render()の先頭で毎回更新）
 
 // 月間表示（全体表示）は、横スクロールなしでひと月分すべてが画面内に収まるよう
 // 表示エリアの実幅からその月の日数ぶんの列幅を逆算する（画面幅・月の日数に応じて自動調整）
@@ -132,22 +151,92 @@ async function onStoreOrMonthChange() {
   render();
   var syncedA = await syncConfirmedShiftsFromSupabase(store, curYear, curMonthIdx);
   var syncedB = await syncShiftRequestsFromSupabase(store, curYear, curMonthIdx);
-  if (syncedA || syncedB) { render(); }
+  var syncedC = await syncSalesTargetsFromSupabase(store, curYear, curMonthIdx);
+  var syncedD = await syncStoreColorsFromSupabase();
+  if (syncedA || syncedB || syncedC || syncedD) { render(); }
+}
+
+// 曜日・祝日で日付BOXに色を付ける（金=黄, 土=青, 日=赤、祝日はそれらより優先して橙）
+function dayCellColorClass(year, monthIdx, day) {
+  var jsDow = new Date(year, monthIdx, day).getDay(); // 0=日,...,6=土
+  if (isJapaneseHoliday(year, monthIdx, day)) { return " holiday"; }
+  if (jsDow === 5) { return " friday"; }
+  if (jsDow === 6) { return " saturday"; }
+  if (jsDow === 0) { return " sunday"; }
+  return "";
 }
 
 function buildHeader(numDays) {
-  var mKey = monthKey(curYear, curMonthIdx);
   var dayW = getDayWidth();
   var html = '<div class="shift-gantt-header-row"><div class="shift-gantt-side-head">氏名</div>';
   for (var day = 1; day <= numDays; day++) {
     var d = new Date(curYear, curMonthIdx, day);
     var wd = SHIFT_DAYS[jsDayToShiftIndex(d.getDay())];
-    var weekend = (wd === "土" || wd === "日") ? " weekend" : "";
-    html += '<div class="shift-gantt-day-cell' + weekend + '" style="width:' + dayW + 'px;flex:0 0 ' + dayW + 'px;">' + (curMonthIdx + 1) + "/" + day + (zoomedOut ? "" : "(" + wd + ")") + "</div>";
+    var colorCls = dayCellColorClass(curYear, curMonthIdx, day);
+    html += '<div class="shift-gantt-day-cell' + colorCls + '" style="width:' + dayW + 'px;flex:0 0 ' + dayW + 'px;">' + (curMonthIdx + 1) + "/" + day + (zoomedOut ? "" : "(" + wd + ")") + "</div>";
   }
   html += '<div class="shift-gantt-summary-head">提出/確定/時間</div>';
   html += "</div>";
   return html;
+}
+
+// 日別の目標売上（日付の上に表示・入力する行）
+function buildTargetRow(numDays, store) {
+  var dayW = getDayWidth();
+  var html = '<div class="shift-gantt-target-row"><div class="shift-gantt-side-head">目標売上</div>';
+  for (var day = 1; day <= numDays; day++) {
+    var dKey = dateKey(curYear, curMonthIdx, day);
+    var val = getSalesTarget(store, dKey);
+    if (zoomedOut) {
+      html += '<div class="shift-gantt-target-cell" style="width:' + dayW + 'px;flex:0 0 ' + dayW + 'px;">' + (val !== null ? Math.round(val / 1000) + "k" : "") + '</div>';
+    } else {
+      html += '<div class="shift-gantt-target-cell" style="width:' + dayW + 'px;flex:0 0 ' + dayW + 'px;">' +
+        '<input type="number" class="shift-target-input" data-datekey="' + dKey + '" value="' + (val !== null ? val : "") + '" placeholder="目標">' +
+        '</div>';
+    }
+  }
+  html += '<div class="shift-gantt-summary-head"></div>';
+  html += "</div>";
+  return html;
+}
+
+// その日の人件費合計（確定シフトの時間×時給。掲載中のスタッフ全員分）
+function dayLaborCost(staff, confirmed, dKey) {
+  var roster = getStaffRoster();
+  var total = 0;
+  staff.forEach(function (name) {
+    var rec = confirmed[name] && confirmed[name][dKey];
+    if (!rec || rec.off) { return; }
+    var s = labelToHour(rec.start), e = labelToHour(rec.end);
+    if (s === null || e === null) { return; }
+    var person = roster.filter(function (p) { return p.name === name; })[0];
+    var wage = (person && person.hourlyWage) ? Number(person.hourlyWage) : 0;
+    total += (e - s) * wage;
+  });
+  return total;
+}
+
+// 人件費率の行（その日の人件費合計÷目標売上）。月間表示では右端に月間人件費率も出す
+function buildLaborRateRow(numDays, store, staff, confirmed) {
+  var dayW = getDayWidth();
+  var html = '<div class="shift-gantt-laborrate-row"><div class="shift-gantt-side-head">人件費率</div>';
+  var monthLaborTotal = 0;
+  var monthTargetTotal = 0;
+  for (var day = 1; day <= numDays; day++) {
+    var dKey = dateKey(curYear, curMonthIdx, day);
+    var cost = dayLaborCost(staff, confirmed, dKey);
+    var target = getSalesTarget(store, dKey);
+    monthLaborTotal += cost;
+    if (target !== null) { monthTargetTotal += target; }
+    var rateText = (target !== null && target > 0) ? (Math.round((cost / target) * 1000) / 10) + "%" : "-";
+    html += '<div class="shift-gantt-laborrate-cell" style="width:' + dayW + 'px;flex:0 0 ' + dayW + 'px;">' + rateText + '</div>';
+  }
+  var monthRateText = monthTargetTotal > 0 ? (Math.round((monthLaborTotal / monthTargetTotal) * 1000) / 10) + "%" : "-";
+  html += '<div class="shift-gantt-summary-cell">' +
+    (zoomedOut ? ('<span>月間</span><span class="sum-hours">' + monthRateText + '</span>') : '') +
+    '</div>';
+  html += "</div>";
+  return { html: html, monthLaborTotal: monthLaborTotal, monthTargetTotal: monthTargetTotal, monthRateText: monthRateText };
 }
 
 // その月の「提出数（希望を出した日数）」「確定数（確定シフトが入っている日数）」
@@ -198,7 +287,9 @@ function buildBar(name, dKey, start, end, kind, isFree) {
     return reqLine + reqLabel;
   }
   var cls = "shift-bar" + (kind === "preview" ? " preview" : "");
-  var bar = '<div class="' + cls + '" data-name="' + name + '" data-datekey="' + dKey + '" data-start="' + start + '" data-end="' + end + '" style="left:' + left + 'px;width:' + width + 'px;">' +
+  // 店舗ごとの色（デフォルト配色 or 右クリックで変更した色）をバーに反映する
+  var colorStyle = (kind === "preview") ? ("border-color:" + currentStoreColor + ";") : ("background-color:" + currentStoreColor + ";");
+  var bar = '<div class="' + cls + '" data-name="' + name + '" data-datekey="' + dKey + '" data-start="' + start + '" data-end="' + end + '" style="left:' + left + 'px;width:' + width + 'px;' + colorStyle + '">' +
     '<div class="handle left" data-role="handle-left"></div>' +
     '<div class="handle right" data-role="handle-right"></div>' +
     '</div>';
@@ -233,22 +324,26 @@ function render() {
   document.getElementById("month-label").textContent = monthLabel(curYear, curMonthIdx);
 
   var store = document.getElementById("store-select").value;
+  currentStoreColor = getStoreColor(store);
   var staff = getStoreStaffNames(store);
   var requests = getRequests();
   var confirmed = getConfirmed();
   var inner = document.getElementById("gantt-inner");
   var emptyState = document.getElementById("empty-state");
+  var summaryLine = document.getElementById("month-summary-line");
   var numDays = daysInMonth(curYear, curMonthIdx);
 
   if (!staff.length) {
     inner.innerHTML = "";
     emptyState.style.display = "block";
+    summaryLine.style.display = "none";
     return;
   }
   emptyState.style.display = "none";
 
   var dayW = getDayWidth();
-  var html = buildHeader(numDays);
+  var html = buildTargetRow(numDays, store);
+  html += buildHeader(numDays);
   staff.forEach(function (name) {
     var req = requests[name];
     var empRecord = confirmed[name] || {};
@@ -290,7 +385,118 @@ function render() {
     html += "</div>";
   });
 
+  var laborRow = buildLaborRateRow(numDays, store, staff, confirmed);
+  html += laborRow.html;
+
   inner.innerHTML = html;
+
+  if (zoomedOut) {
+    summaryLine.style.display = "block";
+    summaryLine.textContent = "月間目標売上合計　¥" + Math.round(laborRow.monthTargetTotal).toLocaleString() +
+      "　／　月間人件費率　" + laborRow.monthRateText;
+  } else {
+    summaryLine.style.display = "none";
+  }
+
+  refreshOverlapWarnings();
+}
+
+// 目標売上の入力（日付の上の行）。入力欄はrender()の度に作り直されるため、
+// 安定して存在するgantt-inner側でイベント委譲する
+document.getElementById("gantt-inner").addEventListener("change", function (e) {
+  var input = e.target.closest(".shift-target-input");
+  if (!input) { return; }
+  var store = document.getElementById("store-select").value;
+  var dKey = input.dataset.datekey;
+  var val = input.value !== "" ? Number(input.value) : null;
+  pushSalesTarget(store, dKey, val).then(function () { render(); });
+});
+
+// ============================================================
+// 臨時スタッフを追加（予備枠。追加後は通常のスタッフと同じ行として扱われる）
+// ============================================================
+async function addTempStaff() {
+  var store = document.getElementById("store-select").value;
+  var name = prompt("臨時スタッフのお名前を入力してください");
+  if (!name) { return; }
+  name = name.trim();
+  if (!name) { return; }
+  var res = await registerTempStaffMember(name, store);
+  if (res.error) {
+    alert("登録に失敗しました。通信環境を確認してもう一度お試しください");
+    return;
+  }
+  render();
+}
+
+// ============================================================
+// 店舗ごとの色を右クリックメニューから変更
+// ============================================================
+function openColorPicker() {
+  var store = document.getElementById("store-select").value;
+  document.getElementById("color-overlay-text").textContent = "「" + store + "」のガントバー色";
+  document.getElementById("store-color-input").value = getStoreColor(store);
+  document.getElementById("color-overlay").style.display = "flex";
+}
+
+function closeColorPicker() {
+  document.getElementById("color-overlay").style.display = "none";
+}
+
+async function saveStoreColorFromPicker() {
+  var store = document.getElementById("store-select").value;
+  var color = document.getElementById("store-color-input").value;
+  var res = await setStoreColor(store, color);
+  closeColorPicker();
+  if (res.error) {
+    alert("色の保存に失敗しました。通信環境を確認してもう一度お試しください");
+  }
+  render();
+}
+
+// ============================================================
+// 複数店舗シフト重複の警告（同じ人が別店舗で時間の重なる確定シフトを持っている場合に表示）
+// ============================================================
+async function refreshOverlapWarnings() {
+  if (typeof TORIYAMA_DB === "undefined" || !TORIYAMA_DB.isConfigured()) { return; }
+  var store = document.getElementById("store-select").value;
+  var roster = getStaffRoster();
+  var staff = getStoreStaffNames(store);
+  var multiStoreNames = staff.filter(function (name) {
+    var person = roster.filter(function (p) { return p.name === name; })[0];
+    return !!(person && person.stores && person.stores.length > 1);
+  });
+  if (!multiStoreNames.length) { return; }
+
+  var storeCode = (typeof STORE_CODE_MAP !== "undefined") ? STORE_CODE_MAP[store] : null;
+  var currentStoreId = storeCode ? await TORIYAMA_DB.getStoreId(storeCode) : null;
+  var crossData = await fetchCrossStoreConfirmedShifts(multiStoreNames, curYear, curMonthIdx);
+  if (!crossData) { return; }
+
+  var confirmed = getConfirmed();
+  multiStoreNames.forEach(function (name) {
+    var byDate = crossData[name];
+    if (!byDate) { return; }
+    Object.keys(byDate).forEach(function (dKey) {
+      var otherEntries = byDate[dKey].filter(function (entry) { return entry.storeId !== currentStoreId; });
+      if (!otherEntries.length) { return; }
+      var mine = confirmed[name] && confirmed[name][dKey];
+      if (!mine || mine.off || !mine.start || !mine.end) { return; }
+
+      var conflicting = otherEntries.filter(function (entry) {
+        return entry.start && entry.end && timeRangesOverlap(mine.start, mine.end, entry.start, entry.end);
+      });
+      if (!conflicting.length) { return; }
+
+      var track = document.querySelector('.shift-gantt-track[data-name="' + name + '"][data-datekey="' + dKey + '"]');
+      if (!track || track.querySelector(".shift-track-warning")) { return; }
+      var badge = document.createElement("div");
+      badge.className = "shift-track-warning";
+      badge.textContent = "⚠";
+      badge.title = name + "さんは" + conflicting.map(function (c) { return c.storeName + "(" + c.start + "–" + c.end + ")"; }).join("・") + "と時間が重複しています";
+      track.appendChild(badge);
+    });
+  });
 }
 
 // ============================================================
@@ -425,6 +631,11 @@ function revertToPreview(barEl) {
 document.getElementById("bar-context-menu").addEventListener("click", function (e) {
   var btn = e.target.closest("button[data-action]");
   if (!btn || !contextTargetBar) { hideContextMenu(); return; }
+  if (btn.dataset.action === "color") {
+    hideContextMenu();
+    openColorPicker();
+    return;
+  }
   takeSnapshot();
   if (btn.dataset.action === "preview") {
     revertToPreview(contextTargetBar);
@@ -489,7 +700,9 @@ window.addEventListener("resize", function () {
   var store = document.getElementById("store-select").value;
   var syncedA = await syncConfirmedShiftsFromSupabase(store, curYear, curMonthIdx);
   var syncedB = await syncShiftRequestsFromSupabase(store, curYear, curMonthIdx);
-  if (syncedA || syncedB) { render(); }
+  var syncedC = await syncSalesTargetsFromSupabase(store, curYear, curMonthIdx);
+  var syncedD = await syncStoreColorsFromSupabase();
+  if (syncedA || syncedB || syncedC || syncedD) { render(); }
 })();
 </script>
 </body>

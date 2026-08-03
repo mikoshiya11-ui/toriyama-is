@@ -114,9 +114,17 @@ var TORIYAMA_DB = (function () {
     var c = getClient();
     var companyId = await getCompanyId();
     if (!c || !companyId) { return null; }
-    var res = await c.from("stores").select("id, name, code").eq("company_id", companyId);
+    var res = await c.from("stores").select("id, name, code, color").eq("company_id", companyId);
     if (res.error) { return null; }
     return res.data || [];
+  }
+
+  // 店舗のガントバー色を変更する（右クリックの色変更メニューから使用）
+  async function updateStoreColor(storeId, color) {
+    var c = getClient();
+    var companyId = await getCompanyId();
+    if (!c || !companyId) { return { error: "not_configured" }; }
+    return await c.from("stores").update({ color: color }).eq("id", storeId).eq("company_id", companyId).select();
   }
 
   // 在籍中（active=true）の全従業員を取得（STAFF登録一覧・名前プルダウン用）
@@ -126,7 +134,7 @@ var TORIYAMA_DB = (function () {
     var companyId = await getCompanyId();
     if (!c || !companyId) { return null; }
     var res = await c.from("employees")
-      .select("id, name, role, home_store_id, birth_date, hire_date, gender, photo_url")
+      .select("id, name, role, home_store_id, birth_date, hire_date, gender, photo_url, hourly_wage")
       .eq("company_id", companyId)
       .eq("active", true);
     if (res.error) { return null; }
@@ -147,6 +155,7 @@ var TORIYAMA_DB = (function () {
       hire_date: person.hireDate || null,
       gender: person.gender || null,
       photo_url: person.photo || null,
+      hourly_wage: (person.hourlyWage !== undefined && person.hourlyWage !== null) ? person.hourlyWage : null,
       active: true
     }).select();
   }
@@ -163,6 +172,7 @@ var TORIYAMA_DB = (function () {
       hire_date: person.hireDate || null,
       gender: person.gender || null
     };
+    if (person.hourlyWage !== undefined) { patch.hourly_wage = person.hourlyWage; }
     // 写真は「変更しない」を区別するため、person.photoが明示的に渡された時だけ更新する
     if (person.photo !== undefined) { patch.photo_url = person.photo || null; }
     return await c.from("employees").update(patch).eq("id", employeeId).eq("company_id", companyId).select();
@@ -234,7 +244,7 @@ var TORIYAMA_DB = (function () {
     var startDate = year + "-" + String(month).padStart(2, "0") + "-01";
     var nextMonthDate = (month === 12) ? (year + 1) + "-01-01" : year + "-" + String(month + 1).padStart(2, "0") + "-01";
     var res = await c.from("shift_confirmed")
-      .select("employee_id, work_date, start_time, end_time, is_off")
+      .select("employee_id, store_id, work_date, start_time, end_time, is_off")
       .eq("company_id", companyId)
       .in("employee_id", employeeIds)
       .gte("work_date", startDate)
@@ -242,7 +252,8 @@ var TORIYAMA_DB = (function () {
     return res.data || [];
   }
 
-  // 確定シフトをまとめて書き込む（1人1日=1行。同じemployee_id+work_dateは上書き）
+  // 確定シフトをまとめて書き込む（1人1日・1店舗=1行。同じemployee_id+work_date+store_idは上書き。
+  // 2026/08/03〜: 掛け持ちスタッフが同じ日に複数店舗の確定シフトを持てるよう、一意キーにstore_idを追加）
   // rows: [{ employeeId, storeId, workDate, startTime, endTime, isOff }, ...]
   async function bulkUpsertConfirmedShifts(rows) {
     var c = getClient();
@@ -260,7 +271,7 @@ var TORIYAMA_DB = (function () {
         is_off: !!r.isOff
       };
     });
-    return await c.from("shift_confirmed").upsert(payload, { onConflict: "employee_id,work_date" }).select();
+    return await c.from("shift_confirmed").upsert(payload, { onConflict: "employee_id,work_date,store_id" }).select();
   }
 
   // 複数の従業員IDについて、指定した年月の希望シフトをまとめて取得（shift-submit.html / admin-shift.htmlで使用）
@@ -327,6 +338,36 @@ var TORIYAMA_DB = (function () {
       reorder_point: item.reorderPoint,
       ordered: item.ordered
     }, { onConflict: "store_id,item_code" }).select();
+  }
+
+  // 指定店舗・指定年月の日別目標売上を取得（シフト管理画面・日付の上の入力欄用。2026/08/03〜）
+  async function fetchSalesTargets(storeId, year, month) {
+    var c = getClient();
+    var companyId = await getCompanyId();
+    if (!c || !companyId || !storeId) { return null; }
+    var startDate = year + "-" + String(month).padStart(2, "0") + "-01";
+    var nextMonthDate = (month === 12) ? (year + 1) + "-01-01" : year + "-" + String(month + 1).padStart(2, "0") + "-01";
+    var res = await c.from("sales_targets")
+      .select("work_date, target_amount")
+      .eq("company_id", companyId)
+      .eq("store_id", storeId)
+      .gte("work_date", startDate)
+      .lt("work_date", nextMonthDate);
+    if (res.error) { return null; }
+    return res.data || [];
+  }
+
+  // 1日分の目標売上を保存（store_id + work_dateで一意。無ければ新規、あれば上書き）
+  async function upsertSalesTarget(storeId, dateStr, amount) {
+    var c = getClient();
+    var companyId = await getCompanyId();
+    if (!c || !companyId || !storeId) { return { error: "not_configured" }; }
+    return await c.from("sales_targets").upsert({
+      company_id: companyId,
+      store_id: storeId,
+      work_date: dateStr,
+      target_amount: amount
+    }, { onConflict: "store_id,work_date" }).select();
   }
 
   // 会社の全店舗分の売上報告を取得（新しい順）
@@ -467,6 +508,7 @@ var TORIYAMA_DB = (function () {
     insertBoardPost: insertBoardPost,
     markBoardPostRead: markBoardPostRead,
     fetchAllStores: fetchAllStores,
+    updateStoreColor: updateStoreColor,
     fetchAllEmployees: fetchAllEmployees,
     addEmployee: addEmployee,
     updateEmployee: updateEmployee,
@@ -479,6 +521,8 @@ var TORIYAMA_DB = (function () {
     bulkUpsertShiftRequests: bulkUpsertShiftRequests,
     fetchAllInventoryState: fetchAllInventoryState,
     upsertInventoryState: upsertInventoryState,
+    fetchSalesTargets: fetchSalesTargets,
+    upsertSalesTarget: upsertSalesTarget,
     fetchAllSalesReports: fetchAllSalesReports,
     insertSalesReport: insertSalesReport,
     updateSalesReport: updateSalesReport,

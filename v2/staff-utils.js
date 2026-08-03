@@ -104,6 +104,7 @@ async function syncStaffRosterFromSupabase() {
         store: homeStoreName,      // 主な所属店舗（表示・後方互換用）
         stores: storeNames,        // 勤務可能な全店舗（掛け持ち対応。フィルタはこちらを使う）
         employmentType: e.role,
+        hourlyWage: e.hourly_wage || 0,  // 時給（円）。人件費率の計算に使う
         birthDate: e.birth_date || "",
         hireDate: e.hire_date || "",
         gender: e.gender || "",
@@ -132,6 +133,7 @@ async function registerStaffMember(person) {
       name: person.name,
       employmentType: person.employmentType,
       storeId: storeIds[0] || null,
+      hourlyWage: person.hourlyWage,
       birthDate: person.birthDate,
       hireDate: person.hireDate,
       gender: person.gender,
@@ -149,6 +151,22 @@ async function registerStaffMember(person) {
   return { ok: true };
 }
 
+// 臨時で手伝いに来たスタッフを、指定した1店舗の「臨時」枠として登録する
+// （シフト管理画面の「＋臨時スタッフを追加」から使用。登録後は通常のスタッフと同じように
+//  STAFF一覧での編集・解除、シフトの設定ができる＝employeesテーブルに普通に1件作るだけ）
+async function registerTempStaffMember(name, store) {
+  return await registerStaffMember({
+    name: name,
+    stores: [store],
+    employmentType: "temp",
+    hourlyWage: null,
+    birthDate: "",
+    hireDate: "",
+    gender: "",
+    photo: ""
+  });
+}
+
 // 既存スタッフの登録内容（名前・雇用形態・生年月日・入社日・性別・写真・勤務店舗）をまとめて編集する
 // person.photo: undefined＝写真は変更しない、""＝写真を削除、data URL＝差し替え
 async function updateStaffMember(id, person) {
@@ -156,6 +174,7 @@ async function updateStaffMember(id, person) {
     var res = await TORIYAMA_DB.updateEmployee(id, {
       name: person.name,
       employmentType: person.employmentType,
+      hourlyWage: person.hourlyWage,
       birthDate: person.birthDate,
       hireDate: person.hireDate,
       gender: person.gender,
@@ -174,6 +193,7 @@ async function updateStaffMember(id, person) {
   if (existing) {
     existing.name = person.name;
     existing.employmentType = person.employmentType;
+    if (person.hourlyWage !== undefined) { existing.hourlyWage = person.hourlyWage; }
     existing.birthDate = person.birthDate;
     existing.hireDate = person.hireDate;
     existing.gender = person.gender;

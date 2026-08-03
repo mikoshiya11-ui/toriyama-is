@@ -33,6 +33,9 @@
       <option value="">雇用形態を選択</option>
     </select>
 
+    <label class="page-note" style="display:block;text-align:left;margin:4px 0 2px;">時給（円）</label>
+    <input class="field" id="in-wage" type="number" min="0" step="1" placeholder="例: 1100">
+
     <label class="page-note" style="display:block;text-align:left;margin:4px 0 2px;">生年月日</label>
     <input class="field" id="in-birth" type="date">
 
@@ -86,6 +89,9 @@
     <select class="field" id="edit-employment">
       <option value="">雇用形態を選択</option>
     </select>
+
+    <label class="page-note" style="display:block;text-align:left;margin:4px 0 2px;">時給（円）</label>
+    <input class="field" id="edit-wage" type="number" min="0" step="1" placeholder="例: 1100">
 
     <label class="page-note" style="display:block;text-align:left;margin:4px 0 2px;">生年月日</label>
     <input class="field" id="edit-birth" type="date">
@@ -206,6 +212,7 @@ function clearForm() {
   document.getElementById("in-name").value = "";
   Array.prototype.slice.call(document.querySelectorAll("#in-store-checks input")).forEach(function (b) { b.checked = false; });
   document.getElementById("in-employment").value = "";
+  document.getElementById("in-wage").value = "";
   document.getElementById("in-birth").value = "";
   document.getElementById("in-hire").value = "";
   document.getElementById("in-gender").value = "";
@@ -220,6 +227,7 @@ async function doRegister() {
   var name = document.getElementById("in-name").value.trim();
   var stores = checkedStores(document.getElementById("in-store-checks"));
   var employmentType = document.getElementById("in-employment").value;
+  var hourlyWage = document.getElementById("in-wage").value;
   var birthDate = document.getElementById("in-birth").value;
   var hireDate = document.getElementById("in-hire").value;
   var gender = document.getElementById("in-gender").value;
@@ -239,6 +247,7 @@ async function doRegister() {
     name: name,
     stores: stores,
     employmentType: employmentType,
+    hourlyWage: hourlyWage ? Number(hourlyWage) : null,
     birthDate: birthDate,
     hireDate: hireDate,
     gender: gender,
@@ -303,6 +312,7 @@ function renderRemoveList() {
     var storeLabel = (person.stores && person.stores.length) ? person.stores.join("・") : person.store;
     var subParts = [storeLabel];
     if (employmentLabel(person.employmentType)) { subParts.push(employmentLabel(person.employmentType)); }
+    if (person.hourlyWage) { subParts.push("時給" + Number(person.hourlyWage).toLocaleString() + "円"); }
     if (genderLabel(person.gender)) { subParts.push(genderLabel(person.gender)); }
     if (birthdayLabel(person.birthDate)) { subParts.push("誕生日 " + birthdayLabel(person.birthDate)); }
     subLine.textContent = subParts.join("　/　");
@@ -393,6 +403,7 @@ function openEditPerson(person) {
   document.getElementById("edit-name").value = person.name || "";
   populateEditEmploymentSelect();
   document.getElementById("edit-employment").value = person.employmentType || "";
+  document.getElementById("edit-wage").value = person.hourlyWage || "";
   document.getElementById("edit-birth").value = person.birthDate || "";
   document.getElementById("edit-hire").value = person.hireDate || "";
   document.getElementById("edit-gender").value = person.gender || "";
@@ -442,10 +453,12 @@ async function saveEditPerson() {
   saveBtn.disabled = true;
   saveBtn.textContent = "保存中...";
 
+  var wageVal = document.getElementById("edit-wage").value;
   var res = await updateStaffMember(id, {
     name: name,
     stores: stores,
     employmentType: employmentType,
+    hourlyWage: wageVal ? Number(wageVal) : null,
     birthDate: document.getElementById("edit-birth").value,
     hireDate: document.getElementById("edit-hire").value,
     gender: document.getElementById("edit-gender").value,
