@@ -394,15 +394,26 @@ function renderRemoveList() {
   });
 }
 
+// モーダル表示中は背後のページがマウスホイールで一緒にスクロールしてしまわないよう、
+// bodyのスクロール自体を止める（2026/08/03〜）。closeで必ず元に戻すこと。
+function lockBodyScroll() {
+  document.body.style.overflow = "hidden";
+}
+function unlockBodyScroll() {
+  document.body.style.overflow = "";
+}
+
 function openConfirm(id, name) {
   pendingRemoveId = id;
   document.getElementById("confirm-text").textContent = name + "さんを解除しますか？";
   document.getElementById("confirm-overlay").style.display = "flex";
+  lockBodyScroll();
 }
 
 function closeConfirm() {
   pendingRemoveId = null;
   document.getElementById("confirm-overlay").style.display = "none";
+  unlockBodyScroll();
 }
 
 async function confirmRemove() {
@@ -473,6 +484,7 @@ function openEditPerson(person) {
   });
 
   document.getElementById("edit-overlay").style.display = "flex";
+  lockBodyScroll();
 }
 
 function populateEditEmploymentSelect() {
@@ -489,6 +501,7 @@ function populateEditEmploymentSelect() {
 function closeEditPerson() {
   pendingEditId = null;
   document.getElementById("edit-overlay").style.display = "none";
+  unlockBodyScroll();
 }
 
 async function saveEditPerson() {

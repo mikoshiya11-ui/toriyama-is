@@ -13,11 +13,13 @@ var SHIFT_DAYS = ["月", "火", "水", "木", "金", "土", "日"];
 // 会社の全店舗一覧（店舗選択プルダウン等で使う固定リスト）
 // 2026/08/01〜: 鳥山社長要望により、Tripot cafe FOOD truck ①・②はスタッフ共有のため
 // 「Tripot cafe FOOD truck」1つに統合。新たに「本部」（事務員・CK）を追加。
+// 2026/08/03〜: 「Central Kitchen」を本部の前に追加。
 var STORE_LIST = [
   "餃子酒場さんちょうめ",
   "鳥料理と炭火焼 鶏やま",
   "Tripot cafe BAKE stand",
   "Tripot cafe FOOD truck",
+  "Central Kitchen",
   "本部"
 ];
 
@@ -27,6 +29,7 @@ var STORE_CODE_MAP = {
   "鳥料理と炭火焼 鶏やま": "keiyama",
   "Tripot cafe BAKE stand": "tripot-bake",
   "Tripot cafe FOOD truck": "tripot-truck",
+  "Central Kitchen": "central-kitchen",
   "本部": "honbu"
 };
 
@@ -37,6 +40,7 @@ var DEFAULT_STORE_COLORS = {
   "keiyama": "#2f6f4f",
   "tripot-bake": "#8a6d3b",
   "tripot-truck": "#3b5b8a",
+  "central-kitchen": "#4a8a7a",
   "honbu": "#6b4c8a"
 };
 
