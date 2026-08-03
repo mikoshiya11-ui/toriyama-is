@@ -1336,6 +1336,46 @@ button {
   z-index: 3;
 }
 
+/* 日程表の右端に固定表示する、当月の提出数・確定数・勤務時間合計 */
+.shift-gantt-summary-head {
+  flex: 0 0 120px;
+  padding: 6px 8px;
+  font-size: 10px;
+  color: #888880;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  border-left: 1px solid #111111;
+  position: sticky;
+  right: 0;
+  background: #f9f7f2;
+  z-index: 3;
+}
+
+.shift-gantt-summary-cell {
+  flex: 0 0 120px;
+  padding: 6px 8px;
+  border-left: 1px solid #111111;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  position: sticky;
+  right: 0;
+  background: inherit;
+  z-index: 2;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.shift-gantt-summary-cell .sum-hours {
+  font-weight: 600;
+  color: #111111;
+}
+
 .shift-gantt-day-cell {
   width: 220px;
   flex: 0 0 220px;

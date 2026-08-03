@@ -145,8 +145,46 @@ function buildHeader(numDays) {
     var weekend = (wd === "土" || wd === "日") ? " weekend" : "";
     html += '<div class="shift-gantt-day-cell' + weekend + '" style="width:' + dayW + 'px;flex:0 0 ' + dayW + 'px;">' + (curMonthIdx + 1) + "/" + day + (zoomedOut ? "" : "(" + wd + ")") + "</div>";
   }
+  html += '<div class="shift-gantt-summary-head">提出/確定/時間</div>';
   html += "</div>";
   return html;
+}
+
+// その月の「提出数（希望を出した日数）」「確定数（確定シフトが入っている日数）」
+// 「勤務時間の合計（確定分のみ）」をスタッフごとに集計する
+function employeeMonthSummary(name, requests, confirmed) {
+  var mKey = monthKey(curYear, curMonthIdx);
+  var req = requests[name] || {};
+  var conf = confirmed[name] || {};
+  var submitted = 0;
+  var confirmedDays = 0;
+  var totalHours = 0;
+
+  Object.keys(req).forEach(function (k) {
+    if (k.indexOf(mKey) === 0 && req[k] && req[k].requested) { submitted++; }
+  });
+
+  Object.keys(conf).forEach(function (k) {
+    if (k.indexOf(mKey) !== 0) { return; }
+    var entry = conf[k];
+    if (!entry || entry.off) { return; }
+    confirmedDays++;
+    var s = labelToHour(entry.start);
+    var e = labelToHour(entry.end);
+    if (s !== null && e !== null) { totalHours += (e - s); }
+  });
+
+  return { submitted: submitted, confirmedDays: confirmedDays, totalHours: totalHours };
+}
+
+function buildSummaryCell(name, requests, confirmed) {
+  var s = employeeMonthSummary(name, requests, confirmed);
+  var hoursText = (Math.round(s.totalHours * 10) / 10) + "時間";
+  return '<div class="shift-gantt-summary-cell">' +
+    '<span>提出 ' + s.submitted + '日</span>' +
+    '<span>確定 ' + s.confirmedDays + '日</span>' +
+    '<span class="sum-hours">' + hoursText + '</span>' +
+    '</div>';
 }
 
 function buildBar(name, dKey, start, end, kind, isFree) {
@@ -248,6 +286,7 @@ function render() {
       }
       html += "</div>";
     }
+    html += buildSummaryCell(name, requests, confirmed);
     html += "</div>";
   });
 
