@@ -25,8 +25,24 @@ function getStaffRoster() {
   catch (e) { return []; }
 }
 
+// 写真（data URL）込みの一覧がlocalStorageの容量上限を超えることがある
+// （2026/08/03〜判明。1名分の写真が10MB超あったケースで確認済み）。
+// 超過時は写真なしで保存し直し、名前・店舗等の表示自体は継続できるようにする。
 function saveStaffRoster(list) {
-  localStorage.setItem(staffRosterKey, JSON.stringify(list));
+  try {
+    localStorage.setItem(staffRosterKey, JSON.stringify(list));
+  } catch (e) {
+    try {
+      var withoutPhotos = list.map(function (p) {
+        var copy = {};
+        for (var k in p) { if (k !== "photo") { copy[k] = p[k]; } }
+        return copy;
+      });
+      localStorage.setItem(staffRosterKey, JSON.stringify(withoutPhotos));
+    } catch (e2) {
+      // それでも入らない場合は諦める（次回オンライン時の同期に任せる）
+    }
+  }
 }
 
 // 生年月日（"YYYY-MM-DD"）を「M月D日」形式に変換する（年は表示しない）

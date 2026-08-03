@@ -126,12 +126,36 @@ async function switchTab(tab) {
   }
 }
 
+// スマホのカメラ写真（4000px超・数MB〜10MB超）をそのままdata URLで保存すると、
+// Supabaseにも重いし、localStorageのオフラインキャッシュ（toriyama_staff_roster）が
+// 容量超過（QuotaExceededError）で保存できなくなり、STAFF一覧が空表示になる不具合の
+// 原因になっていた（2026/08/03〜判明）。ここで縦横480px以内・JPEG品質0.75に縮小してから使う。
+function resizeImageDataUrl(dataUrl, maxSize, quality) {
+  return new Promise(function (resolve) {
+    var img = new Image();
+    img.onload = function () {
+      var w = img.width, h = img.height;
+      if (w > maxSize || h > maxSize) {
+        if (w >= h) { h = Math.round(h * (maxSize / w)); w = maxSize; }
+        else { w = Math.round(w * (maxSize / h)); h = maxSize; }
+      }
+      var canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = function () { resolve(dataUrl); };
+    img.src = dataUrl;
+  });
+}
+
 function onPhotoChange(e) {
   var file = e.target.files[0];
   if (!file) { return; }
   var reader = new FileReader();
-  reader.onload = function () {
-    photoDataUrl = reader.result;
+  reader.onload = async function () {
+    photoDataUrl = await resizeImageDataUrl(reader.result, 480, 0.75);
     var preview = document.getElementById("photo-preview");
     preview.classList.remove("staff-photo-picker");
     preview.textContent = "";
