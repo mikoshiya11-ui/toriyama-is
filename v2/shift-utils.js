@@ -132,6 +132,25 @@ function getStoreStaffNames(store) {
   return inStore.map(function (p) { return p.name; });
 }
 
+// 全スタッフの名前一覧（店舗を問わない・役員・社員・契約社員・バイトの順）。
+// 2026/08/03〜: 希望シフト送信は「どの店舗で働くか」を本人が選ぶものではなく、
+// メイン・サブ全店舗が対象になるため、店舗選択なしで名前だけを選べるようにする。
+function getAllStaffNames() {
+  var roster = (typeof getStaffRoster === "function") ? getStaffRoster() : [];
+  var sorted = roster.slice().sort(function (a, b) { return employmentPriority(a.employmentType) - employmentPriority(b.employmentType); });
+  return sorted.map(function (p) { return p.name; });
+}
+
+// 指定した名前のメイン所属店舗名を返す（希望シフトをSupabaseに書き込む際、
+// shift_requests.store_idは NOT NULL のため便宜上メイン店舗を入れる。
+// 実際の表示はメイン・サブ両方の店舗の管理画面に出る＝store_idでは絞り込んでいない）。
+function mainStoreOfName(name) {
+  var roster = (typeof getStaffRoster === "function") ? getStaffRoster() : [];
+  var person = roster.filter(function (p) { return p.name === name; })[0];
+  if (!person) { return null; }
+  return (person.stores && person.stores.length) ? person.stores[0] : (person.store || null);
+}
+
 // 後方互換のために残す（「社員かどうか」の二値判定。新規コードではemploymentSuffixLabel推奨）
 function isShain(name) {
   var roster = (typeof getStaffRoster === "function") ? getStaffRoster() : [];

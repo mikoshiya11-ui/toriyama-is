@@ -13,18 +13,8 @@
   <h1 class="page-title">希望シフト送信</h1>
   <p class="page-note" style="margin-bottom:16px;">日付をタップして、働ける日と時間を入力してください</p>
 
-  <select class="field" id="store-select" onchange="onStoreChange()" style="width:336px;">
-    <option value="">店舗を選択</option>
-    <option>餃子酒場さんちょうめ</option>
-    <option>鳥料理と炭火焼 鶏やま</option>
-    <option>Tripot cafe BAKE stand</option>
-    <option>Tripot cafe FOOD truck</option>
-    <option>Central Kitchen</option>
-    <option>本部</option>
-  </select>
-
-  <select class="field" id="staff-name" onchange="onNameChange()" style="width:336px;" disabled>
-    <option value="">先に店舗を選択</option>
+  <select class="field" id="staff-name" onchange="onNameChange()" style="width:336px;">
+    <option value="">お名前を選択</option>
   </select>
 
   <div class="shift-cal-nav">
@@ -135,44 +125,34 @@ async function changeMonth(delta) {
   selectedDateKey = null;
   document.getElementById("editor").style.display = "none";
   renderCalendar();
-  var store = document.getElementById("store-select").value;
-  var synced = await syncShiftRequestsFromSupabase(store, curYear, curMonthIdx);
+  var store = mainStoreOfName(currentName());
+  var synced = store && await syncShiftRequestsFromSupabase(store, curYear, curMonthIdx);
   if (synced) { renderCalendar(); }
 }
 
-async function onStoreChange() {
-  var store = document.getElementById("store-select").value;
+// 店舗を問わず全スタッフから選べるようにする（2026/08/03〜）。
+function populateNameSelect() {
   var nameSel = document.getElementById("staff-name");
+  var placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "お名前を選択";
   nameSel.innerHTML = "";
-
-  if (!store) {
-    nameSel.disabled = true;
-    var opt = document.createElement("option");
-    opt.value = "";
-    opt.textContent = "先に店舗を選択";
-    nameSel.appendChild(opt);
-  } else {
-    nameSel.disabled = false;
-    var placeholder = document.createElement("option");
-    placeholder.value = "";
-    placeholder.textContent = "お名前を選択";
-    nameSel.appendChild(placeholder);
-    getStoreStaffNames(store).forEach(function (name) {
-      var o = document.createElement("option");
-      o.value = name;
-      o.textContent = name + employmentSuffixLabel(name);
-      nameSel.appendChild(o);
-    });
-  }
-  onNameChange();
-  var synced = await syncShiftRequestsFromSupabase(store, curYear, curMonthIdx);
-  if (synced) { renderCalendar(); }
+  nameSel.appendChild(placeholder);
+  getAllStaffNames().forEach(function (name) {
+    var o = document.createElement("option");
+    o.value = name;
+    o.textContent = name + employmentSuffixLabel(name);
+    nameSel.appendChild(o);
+  });
 }
 
-function onNameChange() {
+async function onNameChange() {
   selectedDateKey = null;
   document.getElementById("editor").style.display = "none";
   renderCalendar();
+  var store = mainStoreOfName(currentName());
+  var synced = store && await syncShiftRequestsFromSupabase(store, curYear, curMonthIdx);
+  if (synced) { renderCalendar(); }
 }
 
 function renderCalendar() {
@@ -262,7 +242,7 @@ function toggleFreeFields() {
 
 async function saveDay() {
   var name = currentName();
-  var store = document.getElementById("store-select").value;
+  var store = mainStoreOfName(name);
   if (!name || !selectedDateKey) { return; }
 
   var requests = getRequests();
@@ -291,7 +271,7 @@ async function saveDay() {
 // 一度申請した希望シフトを取り消す（requested:falseで上書き保存し、Supabaseにも反映）
 async function cancelDay() {
   var name = currentName();
-  var store = document.getElementById("store-select").value;
+  var store = mainStoreOfName(name);
   if (!name || !selectedDateKey) { return; }
   var dKey = selectedDateKey;
 
@@ -316,6 +296,7 @@ async function cancelDay() {
 
 (async function init() {
   await syncStaffRosterFromSupabase();
+  populateNameSelect();
   renderCalendar();
 })();
 </script>
