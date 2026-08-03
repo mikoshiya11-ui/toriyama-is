@@ -78,7 +78,7 @@ function getDayWidth() {
   if (!zoomedOut) { return DETAIL_DAY_W; }
   var scrollEl = document.querySelector(".shift-gantt-scroll");
   var containerW = (scrollEl && scrollEl.clientWidth) ? scrollEl.clientWidth : 900;
-  var sideW = 60; // .shift-gantt-side-head / .shift-gantt-side-cell の固定幅
+  var sideW = 100; // .shift-gantt-side-head / .shift-gantt-side-cell の固定幅
   var numDays = daysInMonth(curYear, curMonthIdx);
   var w = Math.floor((containerW - sideW) / numDays);
   return Math.max(w, MONTH_MIN_DAY_W);

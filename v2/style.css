@@ -1323,7 +1323,7 @@ button {
 }
 
 .shift-gantt-side-head {
-  flex: 0 0 60px;
+  flex: 0 0 100px;
   padding: 6px 4px;
   font-size: 10px;
   color: #888880;
@@ -1355,7 +1355,7 @@ button {
 .shift-gantt-row {
   display: flex;
   border-bottom: 1px solid #e5e2d9;
-  min-height: 62px;
+  min-height: 80px;
   background: #ffffff;
 }
 
@@ -1364,7 +1364,7 @@ button {
 }
 
 .shift-gantt-side-cell {
-  flex: 0 0 60px;
+  flex: 0 0 100px;
   padding: 6px 4px;
   border-right: 1px solid #111111;
   display: flex;
@@ -1403,8 +1403,8 @@ button {
 
 .shift-bar-request {
   position: absolute;
-  top: 13px;
-  height: 6px;
+  top: 20px;
+  height: 8px;
   border: 1px dashed #888880;
   pointer-events: none;
 }
@@ -1412,11 +1412,12 @@ button {
 .shift-bar-request-time-label {
   position: absolute;
   left: 0;
-  top: 0;
+  top: 2px;
   width: 100%;
   text-align: center;
-  font-size: 9px;
-  color: #888880;
+  font-size: 10px;
+  font-weight: 600;
+  color: #111111;
   white-space: nowrap;
   letter-spacing: 0.5px;
   pointer-events: none;
@@ -1425,7 +1426,7 @@ button {
 
 .shift-bar {
   position: absolute;
-  top: 23px;
+  top: 34px;
   height: 24px;
   background: #111111;
   color: #ffffff;
@@ -1454,7 +1455,7 @@ button {
 .shift-bar-time-label {
   position: absolute;
   left: 0;
-  top: 48px;
+  top: 62px;
   width: 100%;
   text-align: center;
   font-size: 10px;
@@ -1493,6 +1494,21 @@ button {
 
 .shift-gantt-inner.zoomed-out .shift-bar {
   cursor: default;
+}
+
+/* 月間表示は時間ラベルを出さない全体確認用なので、詳細表示用に広げた行の高さ・バー位置を元の詰めた配置に戻す */
+.shift-gantt-inner.zoomed-out .shift-gantt-row {
+  min-height: 54px;
+}
+
+.shift-gantt-inner.zoomed-out .shift-bar-request {
+  top: 5px;
+  height: 8px;
+}
+
+.shift-gantt-inner.zoomed-out .shift-bar {
+  top: 16px;
+  height: 24px;
 }
 
 .shift-gantt-inner.zoomed-out .shift-gantt-day-cell {
