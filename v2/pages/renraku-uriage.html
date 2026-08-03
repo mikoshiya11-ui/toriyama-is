@@ -13,12 +13,15 @@
   <p class="page-note" style="margin-bottom:16px;">閉店後、本日の実績を入力してください</p>
 
   <div class="step" style="width:288px;">
-    <select class="field" id="store" onchange="onStoreOrDateChange()">
+    <select class="field" id="store" onchange="onStoreChange()">
       <option>餃子酒場さんちょうめ</option>
       <option>鳥料理と炭火焼 鶏やま</option>
       <option>Tripot cafe BAKE stand</option>
       <option>Tripot cafe FOOD truck</option>
       <option>本部</option>
+    </select>
+    <select class="field" id="name">
+      <option value="">お名前を選択</option>
     </select>
     <div class="date-field-wrap">
       <input class="field" id="date" type="date" onchange="updateWeekday();onStoreOrDateChange();">
@@ -31,7 +34,7 @@
 
     <p class="page-note" style="text-align:left;margin:4px 0 8px;">以下は手入力の項目です</p>
     <div class="report-row">
-      <input class="field" id="targetRate" type="number" step="0.1" placeholder="目標達成率（%）">
+      <input class="field" id="targetRate" type="number" step="0.1" placeholder="累計目標対比（%）">
       <input class="field" id="cumulativeProfit" type="number" placeholder="累積営業利益（円）">
     </div>
     <div class="report-row">
@@ -68,8 +71,8 @@
   <div class="table-scroll">
     <table class="result-table wide extra-wide" id="history-table">
       <tr>
-        <th>日付</th><th>店舗</th><th>天気</th><th>売上</th><th>客数</th>
-        <th>客単価</th><th>人時売上</th><th>達成率</th><th>累積営業利益</th><th>人件費</th><th>人件費率</th><th></th>
+        <th>日付</th><th>店舗</th><th>報告者</th><th>天気</th><th>売上</th><th>客数</th>
+        <th>客単価</th><th>人時売上</th><th>累計目標対比</th><th>累積営業利益</th><th>人件費</th><th>人件費率</th><th></th>
       </tr>
       <tbody id="history-body"></tbody>
     </table>
@@ -102,6 +105,31 @@ function updateWeekday() {
 }
 updateWeekday();
 
+// 選択中の店舗の在籍スタッフを名前プルダウンに反映する（掛け持ち対応。役員・社員・契約社員・バイトの順）
+function populateNameSelect() {
+  var store = document.getElementById("store").value;
+  var sel = document.getElementById("name");
+  var current = sel.value;
+  sel.innerHTML = "";
+  var placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "お名前を選択";
+  sel.appendChild(placeholder);
+  getStoreStaffNames(store).forEach(function (n) {
+    var o = document.createElement("option");
+    o.value = n;
+    o.textContent = n + employmentSuffixLabel(n);
+    sel.appendChild(o);
+  });
+  // 同じ名前が新しい店舗にもいる場合は選択を維持する（無ければ未選択に戻す）
+  if (current && getStoreStaffNames(store).indexOf(current) !== -1) { sel.value = current; }
+}
+
+function onStoreChange() {
+  populateNameSelect();
+  onStoreOrDateChange();
+}
+
 function getReports() {
   try {
     var raw = localStorage.getItem(reportsKey);
@@ -123,6 +151,10 @@ async function syncSalesReportsFromSupabase() {
     var storeIdToName = {};
     stores.forEach(function (s) { storeIdToName[s.id] = s.name; });
 
+    var roster = (typeof getStaffRoster === "function") ? getStaffRoster() : [];
+    var employeeIdToName = {};
+    roster.forEach(function (p) { employeeIdToName[p.id] = p.name; });
+
     var rows = await TORIYAMA_DB.fetchAllSalesReports();
     var mapped = rows.map(function (r) {
       return {
@@ -136,7 +168,8 @@ async function syncSalesReportsFromSupabase() {
         cumulativeProfit: (r.cumulative_profit === null || r.cumulative_profit === undefined) ? null : r.cumulative_profit,
         laborCost: (r.labor_cost === null || r.labor_cost === undefined) ? null : r.labor_cost,
         laborHours: (r.labor_hours === null || r.labor_hours === undefined) ? null : r.labor_hours,
-        weather: r.weather || ""
+        weather: r.weather || "",
+        submittedByName: employeeIdToName[r.submitted_by] || ""
       };
     });
     saveReports(mapped);
@@ -162,7 +195,8 @@ async function pushSalesReportToSupabase(report) {
     targetRate: report.targetRate,
     cumulativeProfit: report.cumulativeProfit,
     laborCost: report.laborCost,
-    laborHours: report.laborHours
+    laborHours: report.laborHours,
+    submittedBy: report.submittedByName ? findEmployeeIdByName(report.submittedByName) : null
   });
   if (res.error || !res.data || !res.data[0]) { return null; }
   return res.data[0].id;
@@ -184,7 +218,8 @@ async function updateSalesReportInSupabase(id, report) {
     targetRate: report.targetRate,
     cumulativeProfit: report.cumulativeProfit,
     laborCost: report.laborCost,
-    laborHours: report.laborHours
+    laborHours: report.laborHours,
+    submittedBy: report.submittedByName ? findEmployeeIdByName(report.submittedByName) : null
   });
   return !res.error;
 }
@@ -300,6 +335,7 @@ function renderHistory() {
     tr.innerHTML =
       "<td>" + r.date + "</td>" +
       "<td>" + r.store + "</td>" +
+      "<td>" + (r.submittedByName || "-") + "</td>" +
       "<td>" + (r.weather || "-") + "</td>" +
       "<td>" + formatYen(r.sales) + "</td>" +
       "<td>" + (r.guests || "-") + "</td>" +
@@ -365,6 +401,7 @@ function renderHistory() {
 function readFormReport() {
   return {
     store: document.getElementById("store").value,
+    submittedByName: document.getElementById("name").value,
     date: document.getElementById("date").value,
     sales: parseFloat(document.getElementById("sales").value) || 0,
     guests: parseFloat(document.getElementById("guests").value) || 0,
@@ -435,6 +472,8 @@ function editReport(id) {
   if (!r) { return; }
 
   document.getElementById("store").value = r.store;
+  populateNameSelect();
+  document.getElementById("name").value = r.submittedByName || "";
   document.getElementById("date").value = r.date;
   updateWeekday();
   document.getElementById("sales").value = r.sales || "";
@@ -477,7 +516,7 @@ async function deleteReport(id) {
 // 現在表示中の履歴（全店舗・全期間）をCSVとしてダウンロードする
 function exportCsv() {
   var reports = getReports().slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; });
-  var header = ["日付", "店舗", "天気", "売上", "客数", "客単価", "人時売上", "達成率(%)", "累積営業利益", "人件費", "人件費率(%)", "メモ"];
+  var header = ["日付", "店舗", "報告者", "天気", "売上", "客数", "客単価", "人時売上", "累計目標対比(%)", "累積営業利益", "人件費", "人件費率(%)", "メモ"];
   var lines = [header.join(",")];
 
   reports.forEach(function (r) {
@@ -488,6 +527,7 @@ function exportCsv() {
     var row = [
       r.date,
       r.store,
+      r.submittedByName || "",
       r.weather || "",
       r.sales || 0,
       r.guests || "",
@@ -529,6 +569,7 @@ async function onStoreOrDateChange() {
 
 (async function init() {
   await syncStaffRosterFromSupabase();
+  populateNameSelect();
   await syncSalesReportsFromSupabase();
   await onStoreOrDateChange();
 })();

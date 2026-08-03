@@ -318,7 +318,7 @@ var TORIYAMA_DB = (function () {
     var companyId = await getCompanyId();
     if (!c || !companyId) { return []; }
     var res = await c.from("sales_reports")
-      .select("id, store_id, report_date, sales_amount, guest_count, memo, weather, target_rate, cumulative_profit, labor_cost, labor_hours")
+      .select("id, store_id, report_date, sales_amount, guest_count, memo, weather, target_rate, cumulative_profit, labor_cost, labor_hours, submitted_by")
       .eq("company_id", companyId)
       .order("report_date", { ascending: false });
     return res.data || [];
@@ -340,7 +340,8 @@ var TORIYAMA_DB = (function () {
       target_rate: report.targetRate,
       cumulative_profit: report.cumulativeProfit,
       labor_cost: report.laborCost,
-      labor_hours: report.laborHours
+      labor_hours: report.laborHours,
+      submitted_by: report.submittedBy || null
     }).select();
   }
 
@@ -359,7 +360,8 @@ var TORIYAMA_DB = (function () {
       target_rate: report.targetRate,
       cumulative_profit: report.cumulativeProfit,
       labor_cost: report.laborCost,
-      labor_hours: report.laborHours
+      labor_hours: report.laborHours,
+      submitted_by: report.submittedBy || null
     }).eq("id", id).eq("company_id", companyId).select();
   }
 

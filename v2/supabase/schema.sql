@@ -190,7 +190,7 @@ create table if not exists sales_reports (
   memo               text,
   -- weather/target_rate/cumulative_profitは運用途中でALTER TABLEにより追加済み（ここは実体に合わせて記載）
   weather            text,
-  target_rate        numeric,     -- 目標達成率（%）。手入力
+  target_rate        numeric,     -- 累計目標対比（%）。手入力（2026/08/03〜表示名変更、列名target_rateは維持）
   cumulative_profit  numeric,     -- 累積営業利益（円）。手入力
   -- labor_cost/labor_hoursは鳥山社長要望（2026/08/01〜）：確定シフトからの自動概算に加え、
   -- 実際の人件費・総労働時間を手入力できるようにする。人件費率の可視化に使う
