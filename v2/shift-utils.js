@@ -318,6 +318,7 @@ async function syncConfirmedShiftsFromSupabase(store, year, monthIdx) {
 
   try {
     var rows = await TORIYAMA_DB.fetchConfirmedShifts(employeeIds, year, monthIdx + 1);
+    var storeIdToName = await buildStoreIdNameMap();
     var cache = readConfirmedShiftsCache();
     // 希望シフトのキャッシュ同期と同じ理由で、この店舗・この月分は一旦クリアしてから作り直す
     // （Supabase側で削除・変更された確定シフトがローカルに残ってしまわないようにする）
@@ -332,7 +333,9 @@ async function syncConfirmedShiftsFromSupabase(store, year, monthIdx) {
       var name = idToName[r.employee_id];
       if (!name) { return; }
       if (!cache[name]) { cache[name] = {}; }
-      cache[name][r.work_date] = r.is_off ? { off: true } : { off: false, start: hmsToLabel(r.start_time), end: hmsToLabel(r.end_time) };
+      // 実際に確定した店舗名も記録しておく（ガントバーの色を、確定した店舗の色に
+      // 統一するために使う。2026/08/03〜「このシフトを確定」機能の追加時に対応）
+      cache[name][r.work_date] = r.is_off ? { off: true } : { off: false, start: hmsToLabel(r.start_time), end: hmsToLabel(r.end_time), store: storeIdToName[r.store_id] || null };
     });
     writeConfirmedShiftsCache(cache);
     return true;

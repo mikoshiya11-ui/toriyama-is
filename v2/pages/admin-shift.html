@@ -50,6 +50,7 @@
   <p class="page-note" id="month-summary-line" style="display:none;margin-bottom:16px;"></p>
 
   <div id="bar-context-menu" class="bar-context-menu">
+    <button type="button" data-action="confirm">このシフトを確定</button>
     <button type="button" data-action="preview">仮置きに戻す</button>
     <button type="button" data-action="delete">削除</button>
     <button type="button" data-action="color">色を変更...</button>
@@ -294,7 +295,7 @@ function mainStoreColorForPerson(name) {
   return mainStore ? getStoreColor(mainStore) : currentStoreColor;
 }
 
-function buildBar(name, dKey, start, end, kind, isFree) {
+function buildBar(name, dKey, start, end, kind, isFree, confirmedStore) {
   var hourW = getHourWidth();
   var left = start * hourW;
   var width = (end - start) * hourW;
@@ -305,10 +306,12 @@ function buildBar(name, dKey, start, end, kind, isFree) {
     return reqLine + reqLabel;
   }
   var cls = "shift-bar" + (kind === "preview" ? " preview" : "");
-  // 確定/仮置きバーの色は「今見ている店舗」ではなく、その人のメイン店舗の色で統一する
-  // （どの店舗の画面から見ても同じ人は同じ色で表示され、メイン所属がひと目で分かる。
-  //  申請内容を示す点線（.shift-bar-request）はここでは扱わないので色は変わらない）
-  var barColor = mainStoreColorForPerson(name);
+  // 確定バーは「実際に確定した店舗」の色にする（右クリック「このシフトを確定」で1件ずつ
+  // 確定した場合も、まとめて「確定する」で確定した場合も同じ）。これにより、掛け持ちスタッフが
+  // メイン以外の店舗で確定された日は、他の担当店舗の画面で見てもその確定した店舗の色になる。
+  // まだ確定していない仮置き（preview）や、確定済みでも店舗情報が無い古いデータは、
+  // 従来通りメイン店舗の色をフォールバックとして使う（申請内容の点線はここでは扱わないので色は変わらない）
+  var barColor = (kind === "confirmed" && confirmedStore) ? getStoreColor(confirmedStore) : mainStoreColorForPerson(name);
   var colorStyle = (kind === "preview") ? ("border-color:" + barColor + ";") : ("background-color:" + barColor + ";");
   var bar = '<div class="' + cls + '" data-name="' + name + '" data-datekey="' + dKey + '" data-start="' + start + '" data-end="' + end + '" style="left:' + left + 'px;width:' + width + 'px;' + colorStyle + '">' +
     '<div class="handle left" data-role="handle-left"></div>' +
@@ -391,7 +394,7 @@ function render() {
       // これにより「仮置きに戻す」でその日の確定データだけを消した時、他の日の確定状態はそのまま保たれる。
       if (confDay) {
         if (!confDay.off) {
-          html += buildBar(name, dKey, labelToHour(confDay.start), labelToHour(confDay.end), "confirmed");
+          html += buildBar(name, dKey, labelToHour(confDay.start), labelToHour(confDay.end), "confirmed", false, confDay.store);
         } else {
           html += '<div class="empty-hint" data-role="add" data-name="' + name + '" data-datekey="' + dKey + '">＋</div>';
         }
@@ -621,6 +624,33 @@ document.getElementById("gantt-inner").addEventListener("contextmenu", function 
   menu.style.display = "flex";
 });
 
+// シフト1件だけをその場で確定する（右クリック「このシフトを確定」。2026/08/03〜）。
+// 月全体の「確定する」ボタンを押さなくても、この1件だけをすぐに確定・Supabaseへ反映できる。
+// 確定した店舗名をローカルキャッシュにも記録し、掛け持ちスタッフの他の担当店舗の画面でも
+// 同じ色（＝実際に確定した店舗の色）でバーが表示されるようにする
+async function confirmSingleBar(barEl) {
+  var name = barEl.dataset.name;
+  var dKey = barEl.dataset.datekey;
+  var start = Number(barEl.dataset.start);
+  var end = Number(barEl.dataset.end);
+  var store = document.getElementById("store-select").value;
+
+  var entry = { off: false, start: hourToLabel(start), end: hourToLabel(end), store: store };
+  var confirmed = getConfirmed();
+  if (!confirmed[name]) { confirmed[name] = {}; }
+  confirmed[name][dKey] = entry;
+  saveConfirmedData(confirmed);
+
+  var track = barEl.closest(".shift-gantt-track");
+  var requests = getRequests();
+  var reqDay = (requests[name] && requests[name][dKey]) || null;
+  var reqBar = track.querySelector(".shift-bar-request");
+  track.innerHTML = reqBar ? reqBar.outerHTML : "";
+  track.innerHTML += buildBar(name, dKey, start, end, "confirmed", false, store);
+
+  await pushSingleConfirmedShift(store, name, dKey, entry);
+}
+
 function revertToPreview(barEl) {
   // 見た目だけをpreviewクラスにするのではなく、その日の確定データ自体を消す。
   // そうしないと、月表示への切替や店舗・月の移動でrender()が再実行された瞬間に
@@ -657,6 +687,13 @@ document.getElementById("bar-context-menu").addEventListener("click", function (
     openColorPicker();
     return;
   }
+  if (btn.dataset.action === "confirm") {
+    var targetBar = contextTargetBar;
+    hideContextMenu();
+    takeSnapshot();
+    confirmSingleBar(targetBar);
+    return;
+  }
   takeSnapshot();
   if (btn.dataset.action === "preview") {
     revertToPreview(contextTargetBar);
@@ -691,7 +728,7 @@ async function saveConfirmed() {
       var bar = track ? track.querySelector(".shift-bar") : null;
       var entry;
       if (bar) {
-        entry = { off: false, start: hourToLabel(Number(bar.dataset.start)), end: hourToLabel(Number(bar.dataset.end)) };
+        entry = { off: false, start: hourToLabel(Number(bar.dataset.start)), end: hourToLabel(Number(bar.dataset.end)), store: store };
       } else {
         entry = { off: true, start: "", end: "" };
       }
