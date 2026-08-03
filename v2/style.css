@@ -948,6 +948,12 @@ button {
   color: #888880;
 }
 
+.read-badge.read-badge-tappable {
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .read-names {
   font-size: 11px;
   color: #888880;

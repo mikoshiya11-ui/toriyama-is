@@ -121,19 +121,27 @@ function render() {
 
     var footer = document.createElement("div");
     footer.className = "post-footer";
+
+    var names = readerNames(p.readBy);
+    var namesEl = document.createElement("p");
+    namesEl.className = "read-names";
+    namesEl.style.display = "none";
+    if (names.length) { namesEl.textContent = "既読：" + names.join("・"); }
+
     var badge = document.createElement("span");
     badge.className = "read-badge";
     badge.textContent = "既読 " + p.readBy.length + "/" + totalStaff;
+    if (names.length) {
+      badge.classList.add("read-badge-tappable");
+      badge.onclick = function () {
+        namesEl.style.display = (namesEl.style.display === "none") ? "block" : "none";
+      };
+    }
+
     footer.appendChild(badge);
     card.appendChild(footer);
 
-    var names = readerNames(p.readBy);
-    if (names.length) {
-      var namesEl = document.createElement("p");
-      namesEl.className = "read-names";
-      namesEl.textContent = "既読：" + names.join("・");
-      card.appendChild(namesEl);
-    }
+    if (names.length) { card.appendChild(namesEl); }
 
     list.appendChild(card);
   });
