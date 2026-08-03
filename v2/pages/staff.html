@@ -12,6 +12,8 @@
   <img src="../assets/logo.png" alt="鳥やま 鳥料理と炭火焼" class="logo" style="width:64px;margin-bottom:24px;">
   <p class="page-title">スタッフメニュー</p>
 
+  <p class="page-note" id="session-line" style="margin:8px 0 4px;"></p>
+
   <nav class="nav" style="margin-top:16px;">
     <a class="nav-btn" href="kintai.html">勤怠管理</a>
     <a class="nav-btn" href="kintai-shift.html">シフト</a>
@@ -23,5 +25,18 @@
 
   <a class="back" href="../index.html">トップへ戻る</a>
 </div>
+
+<script src="../staff-utils.js"></script>
+<script>
+(function () {
+  var s = (typeof getSessionStaff === "function") ? getSessionStaff() : null;
+  var line = document.getElementById("session-line");
+  if (s) {
+    line.innerHTML = s.name + "さんとしてログイン中　<a href=\"login.html?next=staff.html\">（切り替える）</a>";
+  } else {
+    line.innerHTML = '<a href="login.html?next=staff.html">ログインする</a>';
+  }
+})();
+</script>
 </body>
 </html>

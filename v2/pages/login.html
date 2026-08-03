@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ログイン | 鳥やま 社内システム</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+  <img src="../assets/logo.png" alt="鳥やま" class="logo" style="width:64px;margin-bottom:24px;">
+  <span class="demo-tag">テスト版・仮データ</span>
+  <h1 class="page-title">ログイン</h1>
+  <p class="page-note" style="margin-bottom:16px;">お名前を選択してください</p>
+
+  <select class="field" id="login-name" style="width:288px;">
+    <option value="">お名前を選択</option>
+  </select>
+
+  <button class="nav-btn" style="width:288px;margin-top:12px;" onclick="doLogin()">ログイン</button>
+  <p class="page-note" id="login-error" style="color:#993556;display:none;margin-top:8px;"></p>
+
+  <a class="back" href="staff.html">スタッフメニューへ戻る</a>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="../supabase-client.js"></script>
+<script src="../shift-utils.js"></script>
+<script src="../staff-utils.js"></script>
+<script>
+// ログイン後の遷移先。?next=shift-submit.html のように呼び出し元ページから指定される
+// （指定が無ければスタッフメニューに戻る）
+function nextUrl() {
+  var params = new URLSearchParams(window.location.search);
+  return params.get("next") || "staff.html";
+}
+
+function doLogin() {
+  var name = document.getElementById("login-name").value;
+  var errorEl = document.getElementById("login-error");
+  if (!name) {
+    errorEl.textContent = "お名前を選択してください";
+    errorEl.style.display = "block";
+    return;
+  }
+  var id = findEmployeeIdByName(name);
+  setSessionStaff(id, name);
+  window.location.href = nextUrl();
+}
+
+(async function init() {
+  await syncStaffRosterFromSupabase();
+  var sel = document.getElementById("login-name");
+  var session = getSessionStaff();
+  getAllStaffNames().forEach(function (name) {
+    var o = document.createElement("option");
+    o.value = name;
+    o.textContent = name + employmentSuffixLabel(name);
+    if (session && session.name === name) { o.selected = true; }
+    sel.appendChild(o);
+  });
+})();
+</script>
+</body>
+</html>

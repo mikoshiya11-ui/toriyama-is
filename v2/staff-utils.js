@@ -227,6 +227,28 @@ async function updateStaffStores(id, storeNames) {
   return { ok: true };
 }
 
+/*
+  簡易ログインセッション（2026/08/03〜）。
+  本格的なID・パスワード認証はまだ実装していない（要検討事項として残っている）。
+  現状は「お名前を一度選ぶと、以降は同じ端末・ブラウザでは選び直さずに済む」という
+  簡易版：localStorageに選んだ従業員のid/nameを保持するだけ。共有端末で複数人が
+  使う場合は、ログイン画面から「切り替える」で選び直せるようにしておくこと。
+*/
+var sessionStaffKey = "toriyama_session_staff";
+
+function getSessionStaff() {
+  try { return JSON.parse(localStorage.getItem(sessionStaffKey) || "null"); }
+  catch (e) { return null; }
+}
+
+function setSessionStaff(id, name) {
+  localStorage.setItem(sessionStaffKey, JSON.stringify({ id: id, name: name }));
+}
+
+function clearSessionStaff() {
+  localStorage.removeItem(sessionStaffKey);
+}
+
 // スタッフを解除する（Supabase設定済みならactive=falseに、未設定ならローカルから削除）
 async function unregisterStaffMember(id) {
   if (typeof TORIYAMA_DB !== "undefined" && TORIYAMA_DB.isConfigured()) {

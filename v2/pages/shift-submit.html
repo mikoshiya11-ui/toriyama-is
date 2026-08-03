@@ -13,9 +13,7 @@
   <h1 class="page-title">希望シフト送信</h1>
   <p class="page-note" style="margin-bottom:16px;">日付をタップして、働ける日と時間を入力してください</p>
 
-  <select class="field" id="staff-name" onchange="onNameChange()" style="width:336px;">
-    <option value="">お名前を選択</option>
-  </select>
+  <p class="page-note" id="session-line" style="margin-bottom:12px;"></p>
 
   <div class="shift-cal-nav">
     <button class="nav-btn" style="padding:8px 12px;" onclick="changeMonth(-1)">◀</button>
@@ -114,39 +112,29 @@ function saveRequests(r) {
   localStorage.setItem(requestsKey, JSON.stringify(r));
 }
 
+// 名前は選択式ではなく、簡易ログインセッション（見越テンチョー要望。2026/08/03〜）から取得する。
+// シフト管理を経由した時点で「誰か」は既に分かっているはずなので、この画面で毎回選び直す必要はない。
 function currentName() {
-  return document.getElementById("staff-name").value;
+  var s = getSessionStaff();
+  return s ? s.name : "";
+}
+
+// セッションが無ければログイン画面へ。あれば「○○さんとして申請中」の表示だけ出す
+function requireLogin() {
+  var s = getSessionStaff();
+  if (!s) {
+    window.location.href = "login.html?next=shift-submit.html";
+    return false;
+  }
+  document.getElementById("session-line").innerHTML =
+    s.name + "さんとして申請中　<a href=\"login.html?next=shift-submit.html\">（別の人に切り替える）</a>";
+  return true;
 }
 
 async function changeMonth(delta) {
   var d = new Date(curYear, curMonthIdx + delta, 1);
   curYear = d.getFullYear();
   curMonthIdx = d.getMonth();
-  selectedDateKey = null;
-  document.getElementById("editor").style.display = "none";
-  renderCalendar();
-  var store = mainStoreOfName(currentName());
-  var synced = store && await syncShiftRequestsFromSupabase(store, curYear, curMonthIdx);
-  if (synced) { renderCalendar(); }
-}
-
-// 店舗を問わず全スタッフから選べるようにする（2026/08/03〜）。
-function populateNameSelect() {
-  var nameSel = document.getElementById("staff-name");
-  var placeholder = document.createElement("option");
-  placeholder.value = "";
-  placeholder.textContent = "お名前を選択";
-  nameSel.innerHTML = "";
-  nameSel.appendChild(placeholder);
-  getAllStaffNames().forEach(function (name) {
-    var o = document.createElement("option");
-    o.value = name;
-    o.textContent = name + employmentSuffixLabel(name);
-    nameSel.appendChild(o);
-  });
-}
-
-async function onNameChange() {
   selectedDateKey = null;
   document.getElementById("editor").style.display = "none";
   renderCalendar();
@@ -296,8 +284,11 @@ async function cancelDay() {
 
 (async function init() {
   await syncStaffRosterFromSupabase();
-  populateNameSelect();
+  if (!requireLogin()) { return; }
   renderCalendar();
+  var store = mainStoreOfName(currentName());
+  var synced = store && await syncShiftRequestsFromSupabase(store, curYear, curMonthIdx);
+  if (synced) { renderCalendar(); }
 })();
 </script>
 </body>
