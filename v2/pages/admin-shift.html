@@ -772,6 +772,15 @@ async function saveConfirmed() {
     storeSubset[name] = {};
     for (var day = 1; day <= numDays; day++) {
       var dKey = dateKey(curYear, curMonthIdx, day);
+
+      // 既に別の店舗で確定済みのシフト（右クリック「このシフトを確定」等で個別に確定した分も
+      // 含む）は、まとめて「確定する」を押しても上書きしない＝そのまま残す。
+      // これが無いと、掛け持ちスタッフを表示している別店舗の管理画面で「確定する」を押した瞬間、
+      // 個別に確定済みだったシフトの確定店舗までこの店舗に書き換わってしまっていた（2026/08/03〜修正）。
+      // 同じ店舗内での再確定（時間をドラッグで直してから再度「確定する」等）は従来通り上書きする。
+      var existing = confirmed[name][dKey];
+      if (existing && !existing.off && existing.store && existing.store !== store) { continue; }
+
       var track = document.querySelector('.shift-gantt-track[data-name="' + name + '"][data-datekey="' + dKey + '"]');
       var bar = track ? track.querySelector(".shift-bar") : null;
       var entry;
