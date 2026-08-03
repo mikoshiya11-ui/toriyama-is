@@ -68,11 +68,21 @@
 <script src="../shift-utils.js"></script>
 <script>
 var DETAIL_DAY_W = 100; // 鳥山社長要望：日付間隔を詰めて全体を見渡しやすくする
-var MONTH_DAY_W = 34; // 月間表示（全体表示）用の縮小幅
+var MONTH_MIN_DAY_W = 16; // 月間表示で日付が判読できる最低限の幅
 var zoomedOut = false;
 var MIN_DURATION = 1; // 時間
 
-function getDayWidth() { return zoomedOut ? MONTH_DAY_W : DETAIL_DAY_W; }
+// 月間表示（全体表示）は、横スクロールなしでひと月分すべてが画面内に収まるよう
+// 表示エリアの実幅からその月の日数ぶんの列幅を逆算する（画面幅・月の日数に応じて自動調整）
+function getDayWidth() {
+  if (!zoomedOut) { return DETAIL_DAY_W; }
+  var scrollEl = document.querySelector(".shift-gantt-scroll");
+  var containerW = (scrollEl && scrollEl.clientWidth) ? scrollEl.clientWidth : 900;
+  var sideW = 60; // .shift-gantt-side-head / .shift-gantt-side-cell の固定幅
+  var numDays = daysInMonth(curYear, curMonthIdx);
+  var w = Math.floor((containerW - sideW) / numDays);
+  return Math.max(w, MONTH_MIN_DAY_W);
+}
 function getHourWidth() { return getDayWidth() / 24; }
 
 function toggleZoom() {
@@ -422,6 +432,14 @@ async function saveConfirmed() {
 
   await pushConfirmedShiftsToSupabase(store, curYear, curMonthIdx, storeSubset);
 }
+
+// 画面幅が変わった時（ウィンドウリサイズ・回転等）も、月間表示中は再計算してひと月分が収まるようにする
+var resizeTimer = null;
+window.addEventListener("resize", function () {
+  if (!zoomedOut) { return; }
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(render, 150);
+});
 
 (async function init() {
   await syncStaffRosterFromSupabase();
