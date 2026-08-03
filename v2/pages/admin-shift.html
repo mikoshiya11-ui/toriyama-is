@@ -149,12 +149,15 @@ function buildHeader(numDays) {
   return html;
 }
 
-function buildBar(name, dKey, start, end, kind) {
+function buildBar(name, dKey, start, end, kind, isFree) {
   var hourW = getHourWidth();
   var left = start * hourW;
   var width = (end - start) * hourW;
   if (kind === "request") {
-    return '<div class="shift-bar-request" style="left:' + left + 'px;width:' + width + 'px;"></div>';
+    var reqLine = '<div class="shift-bar-request" style="left:' + left + 'px;width:' + width + 'px;"></div>';
+    var reqText = isFree ? "フリー" : (hourToLabel(start) + '–' + hourToLabel(end));
+    var reqLabel = '<div class="shift-bar-request-time-label">' + reqText + '</div>';
+    return reqLine + reqLabel;
   }
   var cls = "shift-bar" + (kind === "preview" ? " preview" : "");
   var bar = '<div class="' + cls + '" data-name="' + name + '" data-datekey="' + dKey + '" data-start="' + start + '" data-end="' + end + '" style="left:' + left + 'px;width:' + width + 'px;">' +
@@ -227,7 +230,7 @@ function render() {
       var reqEnd = reqDay && reqDay.free ? 24 : (reqDay ? labelToHour(reqDay.end) : null);
 
       if (reqDay && reqDay.requested) {
-        html += buildBar(name, dKey, reqStart, reqEnd, "request");
+        html += buildBar(name, dKey, reqStart, reqEnd, "request", !!reqDay.free);
       }
 
       // その日について「確定データが実際にあるか」だけを見る（月単位のフラグでは判定しない）。

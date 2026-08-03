@@ -1355,7 +1355,7 @@ button {
 .shift-gantt-row {
   display: flex;
   border-bottom: 1px solid #e5e2d9;
-  min-height: 54px;
+  min-height: 62px;
   background: #ffffff;
 }
 
@@ -1403,15 +1403,29 @@ button {
 
 .shift-bar-request {
   position: absolute;
-  top: 5px;
-  height: 8px;
+  top: 13px;
+  height: 6px;
   border: 1px dashed #888880;
   pointer-events: none;
 }
 
+.shift-bar-request-time-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  text-align: center;
+  font-size: 9px;
+  color: #888880;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+  z-index: 1;
+}
+
 .shift-bar {
   position: absolute;
-  top: 16px;
+  top: 23px;
   height: 24px;
   background: #111111;
   color: #ffffff;
@@ -1440,7 +1454,7 @@ button {
 .shift-bar-time-label {
   position: absolute;
   left: 0;
-  top: 41px;
+  top: 48px;
   width: 100%;
   text-align: center;
   font-size: 10px;
@@ -1468,7 +1482,8 @@ button {
   right: -2px;
 }
 
-.shift-gantt-inner.zoomed-out .shift-bar-time-label {
+.shift-gantt-inner.zoomed-out .shift-bar-time-label,
+.shift-gantt-inner.zoomed-out .shift-bar-request-time-label {
   display: none;
 }
 
