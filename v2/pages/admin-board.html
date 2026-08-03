@@ -13,12 +13,15 @@
   <p class="page-note" style="margin-bottom:16px;">全店舗のお知らせをまとめて表示します</p>
 
   <div class="step post-form" style="width:288px;">
-    <select class="field" id="post-store">
+    <select class="field" id="post-store" onchange="onPostStoreChange()">
       <option>餃子酒場さんちょうめ</option>
       <option>鳥料理と炭火焼 鶏やま</option>
       <option>Tripot cafe BAKE stand</option>
       <option>Tripot cafe FOOD truck</option>
       <option>本部</option>
+    </select>
+    <select class="field" id="post-name">
+      <option value="">お名前を選択（任意）</option>
     </select>
     <textarea class="field" id="post-body" placeholder="お知らせ内容を入力"></textarea>
     <input class="field" id="post-image" type="file" accept="image/*" style="padding:8px;">
@@ -48,6 +51,37 @@ function showError(msg) {
   setTimeout(function () { el.style.display = "none"; }, 3000);
 }
 
+function findEmployeeId(name) {
+  var roster = (typeof getStaffRoster === "function") ? getStaffRoster() : [];
+  var p = roster.filter(function (r) { return r.name === name; })[0];
+  return p ? p.id : null;
+}
+
+// 投稿する店舗の在籍スタッフを名前プルダウンに反映する（未選択のままでも投稿可＝管理者投稿扱い）
+function onPostStoreChange() {
+  var store = document.getElementById("post-store").value;
+  var sel = document.getElementById("post-name");
+  sel.innerHTML = "";
+  var placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "お名前を選択（任意）";
+  sel.appendChild(placeholder);
+  getStoreStaffNames(store).forEach(function (name) {
+    var o = document.createElement("option");
+    o.value = name;
+    o.textContent = name + employmentSuffixLabel(name);
+    sel.appendChild(o);
+  });
+}
+
+// 既読者idの配列を名前の配列に変換する（退職・解除済みで名簿に無い人は除く）
+function readerNames(readBy) {
+  var roster = (typeof getStaffRoster === "function") ? getStaffRoster() : [];
+  var idToName = {};
+  roster.forEach(function (p) { idToName[p.id] = p.name; });
+  return readBy.map(function (id) { return idToName[id]; }).filter(Boolean);
+}
+
 function render() {
   var list = document.getElementById("post-list");
   list.innerHTML = "";
@@ -65,7 +99,7 @@ function render() {
     header.className = "post-header";
     var store = document.createElement("span");
     store.className = "post-store";
-    store.textContent = p.store;
+    store.textContent = p.store + (p.postedByName ? "　" + p.postedByName : "");
     var time = document.createElement("span");
     time.className = "post-time";
     time.textContent = formatBoardTime(p.postedAt);
@@ -93,6 +127,14 @@ function render() {
     footer.appendChild(badge);
     card.appendChild(footer);
 
+    var names = readerNames(p.readBy);
+    if (names.length) {
+      var namesEl = document.createElement("p");
+      namesEl.className = "read-names";
+      namesEl.textContent = "既読：" + names.join("・");
+      card.appendChild(namesEl);
+    }
+
     list.appendChild(card);
   });
 }
@@ -100,6 +142,7 @@ function render() {
 async function refreshBoard() {
   await syncStaffRosterFromSupabase();
   totalStaff = getStaffRoster().length;
+  onPostStoreChange();
   var result = await fetchBoardPosts();
   if (result === null) {
     document.getElementById("post-list").innerHTML = '<p class="page-note">Supabase未設定のため掲示板は表示できません</p>';
@@ -112,17 +155,19 @@ async function refreshBoard() {
 
 async function postNotice() {
   var store = document.getElementById("post-store").value;
+  var name = document.getElementById("post-name").value;
   var body = document.getElementById("post-body").value.trim();
   var fileInput = document.getElementById("post-image");
   var file = fileInput.files && fileInput.files[0];
   if (!body) { return; }
 
   var btn = document.getElementById("post-btn");
+  var postedBy = name ? findEmployeeId(name) : null;
 
   async function submit(imageData) {
     btn.disabled = true;
     btn.textContent = "投稿中...";
-    var res = await postBoardMessage(store, body, imageData);
+    var res = await postBoardMessage(store, body, imageData, postedBy);
     btn.disabled = false;
     btn.textContent = "この内容で投稿する";
     if (res.error) {
@@ -136,7 +181,10 @@ async function postNotice() {
 
   if (file) {
     var reader = new FileReader();
-    reader.onload = function (e) { submit(e.target.result); };
+    reader.onload = async function (e) {
+      var resized = await resizeImageDataUrl(e.target.result, 1000, 0.75);
+      submit(resized);
+    };
     reader.readAsDataURL(file);
   } else {
     submit(null);

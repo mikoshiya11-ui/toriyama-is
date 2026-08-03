@@ -398,7 +398,7 @@ var TORIYAMA_DB = (function () {
     var companyId = await getCompanyId();
     if (!c || !companyId) { return []; }
     var res = await c.from("board_posts")
-      .select("id, store_id, body, image_url, posted_at")
+      .select("id, store_id, body, image_url, posted_at, posted_by")
       .eq("company_id", companyId)
       .order("posted_at", { ascending: false })
       .limit(50);

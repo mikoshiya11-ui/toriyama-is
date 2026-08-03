@@ -13,7 +13,7 @@
 */
 
 // 会社全体の投稿一覧を、既読情報とあわせて取得する。
-// 戻り値: [{ id, store, body, image, postedAt, readBy: [employeeId, ...] }, ...]
+// 戻り値: [{ id, store, body, image, postedAt, postedByName, readBy: [employeeId, ...] }, ...]
 // Supabase未設定時はnullを返す（呼び出し側は「投稿機能は使えません」等の案内を出す）
 async function fetchBoardPosts() {
   if (typeof TORIYAMA_DB === "undefined" || !TORIYAMA_DB.isConfigured()) { return null; }
@@ -21,6 +21,10 @@ async function fetchBoardPosts() {
     var stores = await TORIYAMA_DB.fetchAllStores();
     var storeIdToName = {};
     stores.forEach(function (s) { storeIdToName[s.id] = s.name; });
+
+    var roster = (typeof getStaffRoster === "function") ? getStaffRoster() : [];
+    var employeeIdToName = {};
+    roster.forEach(function (p) { employeeIdToName[p.id] = p.name; });
 
     var posts = await TORIYAMA_DB.fetchAllBoardPosts();
     var postIds = posts.map(function (p) { return p.id; });
@@ -38,12 +42,37 @@ async function fetchBoardPosts() {
         body: p.body,
         image: p.image_url,
         postedAt: p.posted_at,
+        postedByName: employeeIdToName[p.posted_by] || "",
         readBy: readsByPost[p.id] || []
       };
     });
   } catch (e) {
     return null;
   }
+}
+
+// 掲示板の画像添付は、スマホのカメラ写真をそのままdata URLで保存すると
+// 数MB〜10MB超になり、Supabaseへの保存やlocalStorageキャッシュの容量超過の
+// 原因になる（STAFF登録の写真で実際に起きた不具合と同じ）。ここで長辺1000px以内・
+// JPEG品質0.75に自動縮小してから使う。
+function resizeImageDataUrl(dataUrl, maxSize, quality) {
+  return new Promise(function (resolve) {
+    var img = new Image();
+    img.onload = function () {
+      var w = img.width, h = img.height;
+      if (w > maxSize || h > maxSize) {
+        if (w >= h) { h = Math.round(h * (maxSize / w)); w = maxSize; }
+        else { w = Math.round(w * (maxSize / h)); h = maxSize; }
+      }
+      var canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = function () { resolve(dataUrl); };
+    img.src = dataUrl;
+  });
 }
 
 // 新規投稿（imageDataUrlはFileReaderで読み込んだdata URL文字列、無ければnull可。

@@ -122,6 +122,14 @@ function findEmployeeId(name) {
   return p ? p.id : null;
 }
 
+// 既読者idの配列を名前の配列に変換する（退職・解除済みで名簿に無い人は除く）
+function readerNames(readBy) {
+  var roster = (typeof getStaffRoster === "function") ? getStaffRoster() : [];
+  var idToName = {};
+  roster.forEach(function (p) { idToName[p.id] = p.name; });
+  return readBy.map(function (id) { return idToName[id]; }).filter(Boolean);
+}
+
 function render() {
   var myStore = currentMyStore();
   var name = currentName();
@@ -147,7 +155,7 @@ function render() {
     header.className = "post-header";
     var store = document.createElement("span");
     store.className = "post-store";
-    store.textContent = p.store;
+    store.textContent = p.store + (p.postedByName ? "　" + p.postedByName : "");
     var time = document.createElement("span");
     time.className = "post-time";
     time.textContent = formatBoardTime(p.postedAt);
@@ -192,6 +200,14 @@ function render() {
     footer.appendChild(badge);
     footer.appendChild(btn);
     card.appendChild(footer);
+
+    var names = readerNames(p.readBy);
+    if (names.length) {
+      var namesEl = document.createElement("p");
+      namesEl.className = "read-names";
+      namesEl.textContent = "既読：" + names.join("・");
+      card.appendChild(namesEl);
+    }
 
     list.appendChild(card);
   });
@@ -238,7 +254,10 @@ async function postNotice() {
 
   if (file) {
     var reader = new FileReader();
-    reader.onload = function (e) { submit(e.target.result); };
+    reader.onload = async function (e) {
+      var resized = await resizeImageDataUrl(e.target.result, 1000, 0.75);
+      submit(resized);
+    };
     reader.readAsDataURL(file);
   } else {
     submit(null);

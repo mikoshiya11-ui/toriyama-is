@@ -948,6 +948,13 @@ button {
   color: #888880;
 }
 
+.read-names {
+  font-size: 11px;
+  color: #888880;
+  text-align: left;
+  margin: 4px 0 0;
+}
+
 .read-btn {
   font-size: 11px;
   padding: 5px 10px;
