@@ -139,7 +139,7 @@ function populateNameSelect() {
   getStoreStaffNames(STORE_NAME).forEach(function (name) {
     var o = document.createElement("option");
     o.value = name;
-    o.textContent = name + (isShain(name) ? "（社員）" : "（バイト）");
+    o.textContent = name + employmentSuffixLabel(name);
     sel.appendChild(o);
   });
 }

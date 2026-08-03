@@ -51,11 +51,7 @@ function genderLabel(g) {
   return "";
 }
 
-function employmentLabel(t) {
-  if (t === "shain") { return "社員"; }
-  if (t === "baito") { return "バイト"; }
-  return "";
-}
+// employmentLabel() は shift-utils.js 側の共通版を使う
 
 function staffCard(person) {
   var card = document.createElement("div");

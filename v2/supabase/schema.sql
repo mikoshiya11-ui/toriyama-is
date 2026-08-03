@@ -57,7 +57,9 @@ create table if not exists employees (
   company_id     uuid not null references companies(id) on delete cascade,
   employee_code  text,                 -- 社員IDなど（社員のみ、会社内で一意）
   name           text not null,
-  role           text not null check (role in ('baito', 'shain')),
+  -- 雇用形態。2026/08/03〜: 契約社員(keiyaku)・役員(yakuin)を追加
+  -- （追加時はalter table employees drop/add constraintで反映。ここは実体に合わせて記載）
+  role           text not null check (role in ('baito', 'shain', 'keiyaku', 'yakuin')),
   pin            text,                 -- デモ用の平文PIN。本番はハッシュ化必須。
   active         boolean not null default true,
   home_store_id  uuid references stores(id),  -- STAFF登録の「所属店舗」（単一店舗のみ。掛け持ちはemployee_store_accessで別途対応）

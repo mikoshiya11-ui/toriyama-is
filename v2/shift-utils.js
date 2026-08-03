@@ -30,21 +30,47 @@ var STORE_CODE_MAP = {
   "本部": "honbu"
 };
 
+// 雇用形態一覧（2026/08/03〜: 契約社員・役員を追加）。表示順・一覧内の並び順はこの配列順。
+var EMPLOYMENT_TYPES = [
+  { value: "yakuin", label: "役員" },
+  { value: "shain", label: "社員" },
+  { value: "keiyaku", label: "契約社員" },
+  { value: "baito", label: "バイト" }
+];
+
+function employmentLabel(t) {
+  var found = EMPLOYMENT_TYPES.filter(function (e) { return e.value === t; })[0];
+  return found ? found.label : "";
+}
+
+// 名前一覧プルダウン等で使う「（社員）」のような雇用形態のサフィックス表示
+function employmentSuffixLabel(name) {
+  var roster = (typeof getStaffRoster === "function") ? getStaffRoster() : [];
+  var person = roster.filter(function (p) { return p.name === name; })[0];
+  var label = person ? employmentLabel(person.employmentType) : "";
+  return label ? "（" + label + "）" : "";
+}
+
+function employmentPriority(t) {
+  var idx = EMPLOYMENT_TYPES.map(function (e) { return e.value; }).indexOf(t);
+  return idx === -1 ? EMPLOYMENT_TYPES.length : idx;
+}
+
 // 従業員が指定店舗で勤務できるか（掛け持ち対応。stores配列が無い旧データはstoreを1件のみとして扱う）
 function staffWorksAt(person, store) {
   var stores = person.stores || (person.store ? [person.store] : []);
   return stores.indexOf(store) !== -1;
 }
 
-// 指定店舗の在籍スタッフ名一覧をSTAFF登録データから取得（社員を配列の先頭に）
+// 指定店舗の在籍スタッフ名一覧をSTAFF登録データから取得（役員・社員・契約社員・バイトの順）
 function getStoreStaffNames(store) {
   var roster = (typeof getStaffRoster === "function") ? getStaffRoster() : [];
   var inStore = roster.filter(function (p) { return staffWorksAt(p, store); });
-  var shain = inStore.filter(function (p) { return p.employmentType === "shain"; }).map(function (p) { return p.name; });
-  var baito = inStore.filter(function (p) { return p.employmentType !== "shain"; }).map(function (p) { return p.name; });
-  return shain.concat(baito);
+  inStore.sort(function (a, b) { return employmentPriority(a.employmentType) - employmentPriority(b.employmentType); });
+  return inStore.map(function (p) { return p.name; });
 }
 
+// 後方互換のために残す（「社員かどうか」の二値判定。新規コードではemploymentSuffixLabel推奨）
 function isShain(name) {
   var roster = (typeof getStaffRoster === "function") ? getStaffRoster() : [];
   var person = roster.filter(function (p) { return p.name === name; })[0];

@@ -31,8 +31,6 @@
 
     <select class="field" id="in-employment">
       <option value="">雇用形態を選択</option>
-      <option value="shain">社員</option>
-      <option value="baito">バイト</option>
     </select>
 
     <label class="page-note" style="display:block;text-align:left;margin:4px 0 2px;">生年月日</label>
@@ -112,6 +110,16 @@ function checkedStores(container) {
 
 function populateStoreSelect() {
   buildStoreChecks(document.getElementById("in-store-checks"));
+}
+
+function populateEmploymentSelect() {
+  var sel = document.getElementById("in-employment");
+  EMPLOYMENT_TYPES.forEach(function (t) {
+    var o = document.createElement("option");
+    o.value = t.value;
+    o.textContent = t.label;
+    sel.appendChild(o);
+  });
 }
 
 async function switchTab(tab) {
@@ -229,11 +237,7 @@ function genderLabel(g) {
   return "";
 }
 
-function employmentLabel(t) {
-  if (t === "shain") { return "社員"; }
-  if (t === "baito") { return "バイト"; }
-  return "";
-}
+// employmentLabel() は shift-utils.js 側の共通版を使う（EMPLOYMENT_TYPESと連動させるため、ここでは定義しない）
 
 function renderRemoveList() {
   var list = document.getElementById("remove-list");
@@ -369,6 +373,7 @@ async function saveEditStores() {
 
 (async function init() {
   populateStoreSelect();
+  populateEmploymentSelect();
   await syncStaffRosterFromSupabase();
   switchTab("register");
 })();

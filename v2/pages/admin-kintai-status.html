@@ -30,7 +30,8 @@
 <script src="../staff-utils.js"></script>
 <script>
 function employmentSuffix(person) {
-  return person.employmentType === "shain" ? "（社員）" : "";
+  var label = employmentLabel(person.employmentType);
+  return label ? "（" + label + "）" : "";
 }
 
 // employeeId -> その日の打刻一覧（punched_at昇順）
@@ -84,10 +85,8 @@ function render() {
     title.textContent = store;
     box.appendChild(title);
 
-    var staff = roster.filter(function (p) { return staffWorksAt(p, store); });
-    var shain = staff.filter(function (p) { return p.employmentType === "shain"; });
-    var baito = staff.filter(function (p) { return p.employmentType !== "shain"; });
-    var ordered = shain.concat(baito);
+    var ordered = roster.filter(function (p) { return staffWorksAt(p, store); });
+    ordered.sort(function (a, b) { return employmentPriority(a.employmentType) - employmentPriority(b.employmentType); });
 
     if (!ordered.length) {
       var empty = document.createElement("p");

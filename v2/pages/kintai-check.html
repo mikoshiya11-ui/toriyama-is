@@ -137,7 +137,7 @@ async function onStoreChange() {
     getStoreStaffNames(store).forEach(function (name) {
       var o = document.createElement("option");
       o.value = name;
-      o.textContent = name + (isShain(name) ? "（社員）" : "（バイト）");
+      o.textContent = name + employmentSuffixLabel(name);
       nameSel.appendChild(o);
     });
   }
