@@ -180,7 +180,17 @@ function buildHeader(numDays) {
   return html;
 }
 
-// 日別の目標売上（日付の上に表示・入力する行）
+// その月の目標売上合計（入力済みの日だけを合算）
+function monthTargetSum(numDays, store) {
+  var total = 0;
+  for (var day = 1; day <= numDays; day++) {
+    var v = getSalesTarget(store, dateKey(curYear, curMonthIdx, day));
+    if (v !== null) { total += v; }
+  }
+  return total;
+}
+
+// 日別の目標売上（日付の上に表示・入力する行）。右端に月間の目標売上合計を出す
 function buildTargetRow(numDays, store) {
   var dayW = getDayWidth();
   var html = '<div class="shift-gantt-target-row"><div class="shift-gantt-side-head">目標売上</div>';
@@ -195,7 +205,8 @@ function buildTargetRow(numDays, store) {
         '</div>';
     }
   }
-  html += '<div class="shift-gantt-summary-head"></div>';
+  var monthTargetTotal = monthTargetSum(numDays, store);
+  html += '<div class="shift-gantt-summary-cell"><span>合計</span><span class="sum-hours">¥' + Math.round(monthTargetTotal).toLocaleString() + '</span></div>';
   html += "</div>";
   return html;
 }
@@ -232,9 +243,7 @@ function buildLaborRateRow(numDays, store, staff, confirmed) {
     html += '<div class="shift-gantt-laborrate-cell" style="width:' + dayW + 'px;flex:0 0 ' + dayW + 'px;">' + rateText + '</div>';
   }
   var monthRateText = monthTargetTotal > 0 ? (Math.round((monthLaborTotal / monthTargetTotal) * 1000) / 10) + "%" : "-";
-  html += '<div class="shift-gantt-summary-cell">' +
-    (zoomedOut ? ('<span>月間</span><span class="sum-hours">' + monthRateText + '</span>') : '') +
-    '</div>';
+  html += '<div class="shift-gantt-summary-cell"><span>月間</span><span class="sum-hours">' + monthRateText + '</span></div>';
   html += "</div>";
   return { html: html, monthLaborTotal: monthLaborTotal, monthTargetTotal: monthTargetTotal, monthRateText: monthRateText };
 }
