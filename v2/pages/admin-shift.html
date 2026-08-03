@@ -711,7 +711,12 @@ function revertToPreview(barEl) {
 
   track.innerHTML = reqBar ? reqBar.outerHTML : "";
   if (reqDay && reqDay.requested) {
-    track.innerHTML += buildBar(name, dKey, labelToHour(reqDay.start), labelToHour(reqDay.end), "preview");
+    // 「フリー（終日OK）」の希望はstart/endが空文字のため、labelToHourにそのまま渡すとNaNになり
+    // バーが壊れて表示される不具合があった（2026/08/03〜修正）。render()と同じく、フリーの場合は
+    // 0時〜24時として扱う
+    var pStart = reqDay.free ? 0 : labelToHour(reqDay.start);
+    var pEnd = reqDay.free ? 24 : labelToHour(reqDay.end);
+    track.innerHTML += buildBar(name, dKey, pStart, pEnd, "preview");
   } else {
     track.innerHTML += '<div class="empty-hint" data-role="add" data-name="' + name + '" data-datekey="' + dKey + '">＋</div>';
   }
