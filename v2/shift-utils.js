@@ -319,6 +319,15 @@ async function syncConfirmedShiftsFromSupabase(store, year, monthIdx) {
   try {
     var rows = await TORIYAMA_DB.fetchConfirmedShifts(employeeIds, year, monthIdx + 1);
     var cache = readConfirmedShiftsCache();
+    // 希望シフトのキャッシュ同期と同じ理由で、この店舗・この月分は一旦クリアしてから作り直す
+    // （Supabase側で削除・変更された確定シフトがローカルに残ってしまわないようにする）
+    var mPrefix = monthKey(year, monthIdx);
+    names.forEach(function (n) {
+      if (!cache[n]) { return; }
+      Object.keys(cache[n]).forEach(function (dKey) {
+        if (dKey.indexOf(mPrefix) === 0) { delete cache[n][dKey]; }
+      });
+    });
     rows.forEach(function (r) {
       var name = idToName[r.employee_id];
       if (!name) { return; }
@@ -417,6 +426,16 @@ async function syncShiftRequestsFromSupabase(store, year, monthIdx) {
   try {
     var rows = await TORIYAMA_DB.fetchShiftRequests(employeeIds, year, monthIdx + 1);
     var cache = readShiftRequestsCache();
+    // この店舗の在籍スタッフ・この月分は、まず一旦クリアしてからSupabaseの内容で作り直す。
+    // こうしないと、Supabase側で削除された希望シフトがローカルキャッシュに残り続けてしまう
+    // （2026/08/03〜判明。「全部消して」の後もタップ済みの端末に古い表示が残るバグの原因だった）。
+    var mPrefix = monthKey(year, monthIdx);
+    names.forEach(function (n) {
+      if (!cache[n]) { return; }
+      Object.keys(cache[n]).forEach(function (dKey) {
+        if (dKey.indexOf(mPrefix) === 0) { delete cache[n][dKey]; }
+      });
+    });
     rows.forEach(function (r) {
       var name = idToName[r.employee_id];
       if (!name) { return; }
