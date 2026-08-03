@@ -124,22 +124,66 @@ var pendingRemoveId = null;
 var pendingEditId = null;
 var editPhotoDataUrl; // undefined＝写真は変更しない（openEditPersonで初期化）
 
+// 勤務店舗チェックボックスに「メイン」ラジオボタンを添える（掛け持ち時、どの店舗が
+// メインの所属店舗かを明示的に選べるようにする。2026/08/03〜）。
+// メインは1店舗だけ選べる（同じcontainer内でラジオのnameを共有）。チェックを外すとその店の
+// メインラジオも自動的に解除・無効化し、他にチェック済みがあれば先頭のものを自動でメインにする。
 function buildStoreChecks(container) {
   container.innerHTML = "";
+  var groupName = (container.id || "store") + "-main";
   STORE_LIST.forEach(function (store) {
-    var label = document.createElement("label");
-    label.className = "staff-store-check-row";
+    var row = document.createElement("div");
+    row.className = "staff-store-check-row";
+
+    var checkLabel = document.createElement("label");
+    checkLabel.className = "staff-store-check-label";
     var box = document.createElement("input");
     box.type = "checkbox";
     box.value = store;
-    label.appendChild(box);
-    label.appendChild(document.createTextNode(store));
-    container.appendChild(label);
+    checkLabel.appendChild(box);
+    checkLabel.appendChild(document.createTextNode(store));
+
+    var mainLabel = document.createElement("label");
+    mainLabel.className = "staff-store-main-label";
+    var radio = document.createElement("input");
+    radio.type = "radio";
+    radio.name = groupName;
+    radio.value = store;
+    radio.disabled = true;
+    mainLabel.appendChild(radio);
+    mainLabel.appendChild(document.createTextNode("メイン"));
+
+    row.appendChild(checkLabel);
+    row.appendChild(mainLabel);
+    container.appendChild(row);
+
+    box.addEventListener("change", function () {
+      radio.disabled = !box.checked;
+      if (!box.checked) {
+        if (radio.checked) {
+          radio.checked = false;
+          var firstChecked = container.querySelector("input[type=checkbox]:checked");
+          if (firstChecked) {
+            var firstRow = firstChecked.closest(".staff-store-check-row");
+            firstRow.querySelector("input[type=radio]").checked = true;
+          }
+        }
+      } else if (!container.querySelector("input[type=radio]:checked")) {
+        radio.checked = true;
+      }
+    });
   });
 }
 
+// チェック済み店舗を「メイン店舗が先頭」の順で返す（メイン未選択なら先頭チェックのまま）。
+// registerStaffMember/updateStaffMemberはstores[0]を主な所属店舗として扱うため、
+// ここで並び替えるだけで他のコードを変更せずにメイン/サブを反映できる。
 function checkedStores(container) {
-  return Array.prototype.slice.call(container.querySelectorAll("input:checked")).map(function (b) { return b.value; });
+  var checked = Array.prototype.slice.call(container.querySelectorAll("input[type=checkbox]:checked")).map(function (b) { return b.value; });
+  var mainRadio = container.querySelector("input[type=radio]:checked");
+  var main = mainRadio ? mainRadio.value : checked[0];
+  if (!main) { return checked; }
+  return [main].concat(checked.filter(function (s) { return s !== main; }));
 }
 
 function populateStoreSelect() {
@@ -210,7 +254,7 @@ function onPhotoChange(e) {
 
 function clearForm() {
   document.getElementById("in-name").value = "";
-  Array.prototype.slice.call(document.querySelectorAll("#in-store-checks input")).forEach(function (b) { b.checked = false; });
+  buildStoreChecks(document.getElementById("in-store-checks")); // チェック・メインラジオとも作り直してリセット
   document.getElementById("in-employment").value = "";
   document.getElementById("in-wage").value = "";
   document.getElementById("in-birth").value = "";
@@ -309,7 +353,14 @@ function renderRemoveList() {
     nameLine.textContent = person.name;
     var subLine = document.createElement("p");
     subLine.className = "staff-list-sub";
-    var storeLabel = (person.stores && person.stores.length) ? person.stores.join("・") : person.store;
+    var storeLabel;
+    if (person.stores && person.stores.length > 1) {
+      storeLabel = "メイン：" + person.stores[0] + "／サブ：" + person.stores.slice(1).join("・");
+    } else if (person.stores && person.stores.length === 1) {
+      storeLabel = person.stores[0];
+    } else {
+      storeLabel = person.store;
+    }
     var subParts = [storeLabel];
     if (employmentLabel(person.employmentType)) { subParts.push(employmentLabel(person.employmentType)); }
     if (person.hourlyWage) { subParts.push("時給" + Number(person.hourlyWage).toLocaleString() + "円"); }
@@ -411,8 +462,14 @@ function openEditPerson(person) {
   var container = document.getElementById("edit-store-checks");
   buildStoreChecks(container);
   var current = person.stores && person.stores.length ? person.stores : (person.store ? [person.store] : []);
-  Array.prototype.slice.call(container.querySelectorAll("input")).forEach(function (b) {
-    b.checked = current.indexOf(b.value) !== -1;
+  var mainStore = current[0] || null;
+  Array.prototype.slice.call(container.querySelectorAll(".staff-store-check-row")).forEach(function (row) {
+    var box = row.querySelector("input[type=checkbox]");
+    var radio = row.querySelector("input[type=radio]");
+    var isChecked = current.indexOf(box.value) !== -1;
+    box.checked = isChecked;
+    radio.disabled = !isChecked;
+    radio.checked = isChecked && box.value === mainStore;
   });
 
   document.getElementById("edit-overlay").style.display = "flex";

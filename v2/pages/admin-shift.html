@@ -285,6 +285,14 @@ function buildSummaryCell(name, requests, confirmed) {
     '</div>';
 }
 
+// その人のメイン所属店舗（stores[0]）の色を返す（未登録・店舗未設定なら今見ている店舗の色にフォールバック）
+function mainStoreColorForPerson(name) {
+  var roster = getStaffRoster();
+  var person = roster.filter(function (p) { return p.name === name; })[0];
+  var mainStore = (person && person.stores && person.stores.length) ? person.stores[0] : (person ? person.store : null);
+  return mainStore ? getStoreColor(mainStore) : currentStoreColor;
+}
+
 function buildBar(name, dKey, start, end, kind, isFree) {
   var hourW = getHourWidth();
   var left = start * hourW;
@@ -296,8 +304,11 @@ function buildBar(name, dKey, start, end, kind, isFree) {
     return reqLine + reqLabel;
   }
   var cls = "shift-bar" + (kind === "preview" ? " preview" : "");
-  // 店舗ごとの色（デフォルト配色 or 右クリックで変更した色）をバーに反映する
-  var colorStyle = (kind === "preview") ? ("border-color:" + currentStoreColor + ";") : ("background-color:" + currentStoreColor + ";");
+  // 確定/仮置きバーの色は「今見ている店舗」ではなく、その人のメイン店舗の色で統一する
+  // （どの店舗の画面から見ても同じ人は同じ色で表示され、メイン所属がひと目で分かる。
+  //  申請内容を示す点線（.shift-bar-request）はここでは扱わないので色は変わらない）
+  var barColor = mainStoreColorForPerson(name);
+  var colorStyle = (kind === "preview") ? ("border-color:" + barColor + ";") : ("background-color:" + barColor + ";");
   var bar = '<div class="' + cls + '" data-name="' + name + '" data-datekey="' + dKey + '" data-start="' + start + '" data-end="' + end + '" style="left:' + left + 'px;width:' + width + 'px;' + colorStyle + '">' +
     '<div class="handle left" data-role="handle-left"></div>' +
     '<div class="handle right" data-role="handle-right"></div>' +
