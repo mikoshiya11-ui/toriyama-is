@@ -307,11 +307,9 @@ function buildBar(name, dKey, start, end, kind, isFree, confirmedStore) {
     var reqLabel = '<div class="shift-bar-request-time-label">' + reqText + '</div>';
     return reqLine + reqLabel;
   }
-  // 確定バーが「実際には今見ている店舗ではなく、他の担当店舗で確定されたシフト」の場合は、
-  // 半透明にして「この店舗には出勤しない（他店舗にいる）」ことがひと目で分かるようにする
-  // （2026/08/03〜。「●」の案内マークだけだと分かりにくい、という指摘に対応）
-  var isCrossStore = (kind === "confirmed" && confirmedStore && confirmedStore !== currentStoreName);
-  var cls = "shift-bar" + (kind === "preview" ? " preview" : "") + (isCrossStore ? " cross-store" : "");
+  // 半透明表示は鳥山社長の意向で廃止（2026/08/03〜）。他店舗で確定済みかどうかは
+  // 「●」の案内マーク（refreshOverlapWarnings）だけで示す
+  var cls = "shift-bar" + (kind === "preview" ? " preview" : "");
   // 確定バーは「実際に確定した店舗」の色にする（右クリック「このシフトを確定」で1件ずつ
   // 確定した場合も、まとめて「確定する」で確定した場合も同じ）。これにより、掛け持ちスタッフが
   // メイン以外の店舗で確定された日は、他の担当店舗の画面で見てもその確定した店舗の色になる。
