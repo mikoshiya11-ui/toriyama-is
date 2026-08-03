@@ -1588,6 +1588,12 @@ button {
   background: #f9f7f2;
 }
 
+/* 実際には他の担当店舗で確定されているシフト（今見ている店舗には出勤しない）は
+   半透明にして、確定色そのままのバーと見分けやすくする（2026/08/03〜） */
+.shift-bar.cross-store {
+  opacity: 0.45;
+}
+
 .shift-bar-time-label {
   position: absolute;
   left: 0;

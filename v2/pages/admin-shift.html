@@ -92,6 +92,7 @@ var MONTH_MIN_DAY_W = 16; // 月間表示で日付が判読できる最低限の
 var zoomedOut = false;
 var MIN_DURATION = 1; // 時間
 var currentStoreColor = "#111111"; // 今表示中の店舗のガントバー色（render()の先頭で毎回更新）
+var currentStoreName = ""; // 今表示中の店舗名（確定バーが「実際にはよそで出勤」かどうかの判定に使う。render()の先頭で毎回更新）
 
 // 月間表示（全体表示）は、横スクロールなしでひと月分すべてが画面内に収まるよう
 // 表示エリアの実幅からその月の日数ぶんの列幅を逆算する（画面幅・月の日数に応じて自動調整）
@@ -305,7 +306,11 @@ function buildBar(name, dKey, start, end, kind, isFree, confirmedStore) {
     var reqLabel = '<div class="shift-bar-request-time-label">' + reqText + '</div>';
     return reqLine + reqLabel;
   }
-  var cls = "shift-bar" + (kind === "preview" ? " preview" : "");
+  // 確定バーが「実際には今見ている店舗ではなく、他の担当店舗で確定されたシフト」の場合は、
+  // 半透明にして「この店舗には出勤しない（他店舗にいる）」ことがひと目で分かるようにする
+  // （2026/08/03〜。「●」の案内マークだけだと分かりにくい、という指摘に対応）
+  var isCrossStore = (kind === "confirmed" && confirmedStore && confirmedStore !== currentStoreName);
+  var cls = "shift-bar" + (kind === "preview" ? " preview" : "") + (isCrossStore ? " cross-store" : "");
   // 確定バーは「実際に確定した店舗」の色にする（右クリック「このシフトを確定」で1件ずつ
   // 確定した場合も、まとめて「確定する」で確定した場合も同じ）。これにより、掛け持ちスタッフが
   // メイン以外の店舗で確定された日は、他の担当店舗の画面で見てもその確定した店舗の色になる。
@@ -349,6 +354,7 @@ function render() {
 
   var store = document.getElementById("store-select").value;
   currentStoreColor = getStoreColor(store);
+  currentStoreName = store;
   var staff = getStoreStaffNames(store);
   var requests = getRequests();
   var confirmed = getConfirmed();
