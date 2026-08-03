@@ -149,6 +149,41 @@ async function registerStaffMember(person) {
   return { ok: true };
 }
 
+// 既存スタッフの登録内容（名前・雇用形態・生年月日・入社日・性別・写真・勤務店舗）をまとめて編集する
+// person.photo: undefined＝写真は変更しない、""＝写真を削除、data URL＝差し替え
+async function updateStaffMember(id, person) {
+  if (typeof TORIYAMA_DB !== "undefined" && TORIYAMA_DB.isConfigured()) {
+    var res = await TORIYAMA_DB.updateEmployee(id, {
+      name: person.name,
+      employmentType: person.employmentType,
+      birthDate: person.birthDate,
+      hireDate: person.hireDate,
+      gender: person.gender,
+      photo: person.photo
+    });
+    if (res.error) { return { error: res.error }; }
+    if (person.stores) {
+      var storesRes = await updateStaffStores(id, person.stores);
+      if (storesRes.error) { return { error: storesRes.error }; }
+    }
+    await syncStaffRosterFromSupabase();
+    return { ok: true };
+  }
+  var list = getStaffRoster();
+  var existing = list.filter(function (p) { return p.id === id; })[0];
+  if (existing) {
+    existing.name = person.name;
+    existing.employmentType = person.employmentType;
+    existing.birthDate = person.birthDate;
+    existing.hireDate = person.hireDate;
+    existing.gender = person.gender;
+    if (person.photo !== undefined) { existing.photo = person.photo; }
+    if (person.stores) { existing.stores = person.stores; existing.store = person.stores[0] || ""; }
+    saveStaffRoster(list);
+  }
+  return { ok: true };
+}
+
 // 既存スタッフの勤務可能店舗を更新する（掛け持ち先の追加・変更用）
 async function updateStaffStores(id, storeNames) {
   if (typeof TORIYAMA_DB !== "undefined" && TORIYAMA_DB.isConfigured()) {

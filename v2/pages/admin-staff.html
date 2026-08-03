@@ -69,14 +69,41 @@
   </div>
 </div>
 
-<div class="kintai-edit-overlay" id="edit-stores-overlay" style="display:none;">
-  <div class="kintai-edit-modal">
-    <p class="page-note" id="edit-stores-text" style="margin-bottom:12px;"></p>
-    <div id="edit-store-checks" class="staff-store-checks" style="margin-bottom:16px;"></div>
-    <p class="page-note" id="edit-stores-error" style="color:#993556;display:none;margin-bottom:10px;"></p>
+<div class="kintai-edit-overlay" id="edit-overlay" style="display:none;">
+  <div class="kintai-edit-modal" style="max-width:336px;">
+    <p class="page-note" id="edit-text" style="margin-bottom:12px;">スタッフ情報を編集</p>
+
+    <label class="staff-photo-input-label" for="edit-photo">
+      <div class="staff-photo staff-photo-picker" id="edit-photo-preview">写真を選択</div>
+    </label>
+    <input type="file" id="edit-photo" accept="image/*" style="display:none;" onchange="onEditPhotoChange(event)">
+
+    <input class="field" id="edit-name" type="text" placeholder="名前">
+
+    <label class="page-note" style="display:block;text-align:left;margin:4px 0 2px;">勤務店舗（掛け持ち可・複数選択可）</label>
+    <div id="edit-store-checks" class="staff-store-checks"></div>
+
+    <select class="field" id="edit-employment">
+      <option value="">雇用形態を選択</option>
+    </select>
+
+    <label class="page-note" style="display:block;text-align:left;margin:4px 0 2px;">生年月日</label>
+    <input class="field" id="edit-birth" type="date">
+
+    <label class="page-note" style="display:block;text-align:left;margin:4px 0 2px;">入社日</label>
+    <input class="field" id="edit-hire" type="date">
+
+    <select class="field" id="edit-gender">
+      <option value="">性別を選択</option>
+      <option value="male">男性</option>
+      <option value="female">女性</option>
+      <option value="other">その他・回答しない</option>
+    </select>
+
+    <p class="page-note" id="edit-error" style="color:#993556;display:none;margin-bottom:10px;"></p>
     <div class="nav" style="flex-direction:row;width:auto;gap:8px;justify-content:center;">
-      <button type="button" class="nav-btn" onclick="closeEditStores()">キャンセル</button>
-      <button type="button" class="nav-btn" id="edit-stores-save-btn" onclick="saveEditStores()">保存</button>
+      <button type="button" class="nav-btn" onclick="closeEditPerson()">キャンセル</button>
+      <button type="button" class="nav-btn" id="edit-save-btn" onclick="saveEditPerson()">保存</button>
     </div>
   </div>
 </div>
@@ -89,6 +116,7 @@
 var photoDataUrl = "";
 var pendingRemoveId = null;
 var pendingEditId = null;
+var editPhotoDataUrl; // undefined＝写真は変更しない（openEditPersonで初期化）
 
 function buildStoreChecks(container) {
   container.innerHTML = "";
@@ -288,8 +316,8 @@ function renderRemoveList() {
     var editBtn = document.createElement("button");
     editBtn.type = "button";
     editBtn.className = "kintai-row-edit-btn";
-    editBtn.textContent = "勤務店舗を編集";
-    editBtn.onclick = function () { openEditStores(person); };
+    editBtn.textContent = "編集";
+    editBtn.onclick = function () { openEditPerson(person); };
     btnGroup.appendChild(editBtn);
 
     var btn = document.createElement("button");
@@ -328,46 +356,111 @@ async function confirmRemove() {
   renderRemoveList();
 }
 
-function openEditStores(person) {
+function onEditPhotoChange(e) {
+  var file = e.target.files[0];
+  if (!file) { return; }
+  var reader = new FileReader();
+  reader.onload = async function () {
+    editPhotoDataUrl = await resizeImageDataUrl(reader.result, 480, 0.75);
+    var preview = document.getElementById("edit-photo-preview");
+    preview.classList.remove("staff-photo-picker");
+    preview.textContent = "";
+    var img = document.createElement("img");
+    img.src = editPhotoDataUrl;
+    preview.appendChild(img);
+  };
+  reader.readAsDataURL(file);
+}
+
+function openEditPerson(person) {
   pendingEditId = person.id;
-  document.getElementById("edit-stores-text").textContent = person.name + "さんの勤務店舗（掛け持ち可・複数選択可）";
-  document.getElementById("edit-stores-error").style.display = "none";
+  editPhotoDataUrl = undefined; // 未変更のまま。写真を選び直した時だけ上書きされる
+  document.getElementById("edit-text").textContent = person.name + "さんの情報を編集";
+  document.getElementById("edit-error").style.display = "none";
+
+  var preview = document.getElementById("edit-photo-preview");
+  preview.innerHTML = "";
+  if (person.photo) {
+    preview.classList.remove("staff-photo-picker");
+    var img = document.createElement("img");
+    img.src = person.photo;
+    preview.appendChild(img);
+  } else {
+    preview.classList.add("staff-photo-picker");
+    preview.textContent = "写真を選択";
+  }
+
+  document.getElementById("edit-name").value = person.name || "";
+  populateEditEmploymentSelect();
+  document.getElementById("edit-employment").value = person.employmentType || "";
+  document.getElementById("edit-birth").value = person.birthDate || "";
+  document.getElementById("edit-hire").value = person.hireDate || "";
+  document.getElementById("edit-gender").value = person.gender || "";
+
   var container = document.getElementById("edit-store-checks");
   buildStoreChecks(container);
   var current = person.stores && person.stores.length ? person.stores : (person.store ? [person.store] : []);
   Array.prototype.slice.call(container.querySelectorAll("input")).forEach(function (b) {
     b.checked = current.indexOf(b.value) !== -1;
   });
-  document.getElementById("edit-stores-overlay").style.display = "flex";
+
+  document.getElementById("edit-overlay").style.display = "flex";
 }
 
-function closeEditStores() {
+function populateEditEmploymentSelect() {
+  var sel = document.getElementById("edit-employment");
+  sel.innerHTML = '<option value="">雇用形態を選択</option>';
+  EMPLOYMENT_TYPES.forEach(function (t) {
+    var o = document.createElement("option");
+    o.value = t.value;
+    o.textContent = t.label;
+    sel.appendChild(o);
+  });
+}
+
+function closeEditPerson() {
   pendingEditId = null;
-  document.getElementById("edit-stores-overlay").style.display = "none";
+  document.getElementById("edit-overlay").style.display = "none";
 }
 
-async function saveEditStores() {
+async function saveEditPerson() {
   if (!pendingEditId) { return; }
+  var name = document.getElementById("edit-name").value.trim();
   var stores = checkedStores(document.getElementById("edit-store-checks"));
-  if (!stores.length) {
-    document.getElementById("edit-stores-error").textContent = "1つ以上選択してください";
-    document.getElementById("edit-stores-error").style.display = "block";
+  var employmentType = document.getElementById("edit-employment").value;
+  var errorEl = document.getElementById("edit-error");
+
+  if (!name || !stores.length || !employmentType) {
+    errorEl.textContent = "名前・勤務店舗（1つ以上）・雇用形態は必須です";
+    errorEl.style.display = "block";
     return;
   }
+  errorEl.style.display = "none";
+
   var id = pendingEditId;
-  var saveBtn = document.getElementById("edit-stores-save-btn");
+  var saveBtn = document.getElementById("edit-save-btn");
   saveBtn.disabled = true;
   saveBtn.textContent = "保存中...";
-  var res = await updateStaffStores(id, stores);
+
+  var res = await updateStaffMember(id, {
+    name: name,
+    stores: stores,
+    employmentType: employmentType,
+    birthDate: document.getElementById("edit-birth").value,
+    hireDate: document.getElementById("edit-hire").value,
+    gender: document.getElementById("edit-gender").value,
+    photo: editPhotoDataUrl
+  });
+
   saveBtn.disabled = false;
   saveBtn.textContent = "保存";
+
   if (res.error) {
-    document.getElementById("edit-stores-error").textContent = "保存に失敗しました。通信環境を確認してもう一度お試しください";
-    document.getElementById("edit-stores-error").style.display = "block";
+    errorEl.textContent = "保存に失敗しました。通信環境を確認してもう一度お試しください";
+    errorEl.style.display = "block";
     return;
   }
-  closeEditStores();
-  await syncStaffRosterFromSupabase();
+  closeEditPerson();
   renderRemoveList();
 }
 

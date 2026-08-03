@@ -151,6 +151,23 @@ var TORIYAMA_DB = (function () {
     }).select();
   }
 
+  // 従業員の登録内容を編集（所属店舗はemployee_store_access側で別途管理するためここでは触らない）
+  async function updateEmployee(employeeId, person) {
+    var c = getClient();
+    var companyId = await getCompanyId();
+    if (!c || !companyId) { return { error: "not_configured" }; }
+    var patch = {
+      name: person.name,
+      role: person.employmentType,
+      birth_date: person.birthDate || null,
+      hire_date: person.hireDate || null,
+      gender: person.gender || null
+    };
+    // 写真は「変更しない」を区別するため、person.photoが明示的に渡された時だけ更新する
+    if (person.photo !== undefined) { patch.photo_url = person.photo || null; }
+    return await c.from("employees").update(patch).eq("id", employeeId).eq("company_id", companyId).select();
+  }
+
   // 従業員を解除（打刻・勤怠の過去データを残すため、削除ではなくactive=falseにする論理削除）
   async function deactivateEmployee(employeeId) {
     var c = getClient();
@@ -452,6 +469,7 @@ var TORIYAMA_DB = (function () {
     fetchAllStores: fetchAllStores,
     fetchAllEmployees: fetchAllEmployees,
     addEmployee: addEmployee,
+    updateEmployee: updateEmployee,
     deactivateEmployee: deactivateEmployee,
     fetchAllEmployeeStoreAccess: fetchAllEmployeeStoreAccess,
     setEmployeeStoreAccess: setEmployeeStoreAccess,
