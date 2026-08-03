@@ -492,8 +492,6 @@ async function refreshOverlapWarnings() {
   });
   if (!multiStoreNames.length) { return; }
 
-  var storeCode = (typeof STORE_CODE_MAP !== "undefined") ? STORE_CODE_MAP[store] : null;
-  var currentStoreId = storeCode ? await TORIYAMA_DB.getStoreId(storeCode) : null;
   var crossData = await fetchCrossStoreConfirmedShifts(multiStoreNames, curYear, curMonthIdx);
   if (!crossData) { return; }
 
@@ -502,23 +500,42 @@ async function refreshOverlapWarnings() {
     var byDate = crossData[name];
     if (!byDate) { return; }
     Object.keys(byDate).forEach(function (dKey) {
-      var otherEntries = byDate[dKey].filter(function (entry) { return entry.storeId !== currentStoreId; });
-      if (!otherEntries.length) { return; }
       var mine = confirmed[name] && confirmed[name][dKey];
       if (!mine || mine.off || !mine.start || !mine.end) { return; }
+
+      // このバーが実際に確定された店舗（storeが無い古いデータは、今見ている店舗を確定店舗とみなす）
+      var actualStore = mine.store || store;
+
+      // 「実際に確定した店舗と同じシフトが、掛け持ち先の他店舗の画面にも表示されているだけ」
+      // というケースを、本当の重複（別店舗で別に確定されたシフトと時間が重なる）と区別するため、
+      // 確定店舗自身のエントリは比較対象から除外する
+      // （2026/08/03〜「このシフトを確定」導入後、単なる他店舗表示を誤って「重複」と
+      //  表示していた不具合を修正）
+      var otherEntries = byDate[dKey].filter(function (entry) { return entry.storeName !== actualStore; });
+
+      var track = document.querySelector('.shift-gantt-track[data-name="' + name + '"][data-datekey="' + dKey + '"]');
+      if (!track || track.querySelector(".shift-track-warning") || track.querySelector(".shift-track-info")) { return; }
 
       var conflicting = otherEntries.filter(function (entry) {
         return entry.start && entry.end && timeRangesOverlap(mine.start, mine.end, entry.start, entry.end);
       });
-      if (!conflicting.length) { return; }
 
-      var track = document.querySelector('.shift-gantt-track[data-name="' + name + '"][data-datekey="' + dKey + '"]');
-      if (!track || track.querySelector(".shift-track-warning")) { return; }
-      var badge = document.createElement("div");
-      badge.className = "shift-track-warning";
-      badge.textContent = "⚠";
-      badge.title = name + "さんは" + conflicting.map(function (c) { return c.storeName + "(" + c.start + "–" + c.end + ")"; }).join("・") + "と時間が重複しています";
-      track.appendChild(badge);
+      if (conflicting.length) {
+        // 別店舗で別に確定されたシフトと本当に時間が重なっている＝真の重複警告
+        var badge = document.createElement("div");
+        badge.className = "shift-track-warning";
+        badge.textContent = "⚠";
+        badge.title = name + "さんは" + conflicting.map(function (c) { return c.storeName + "(" + c.start + "–" + c.end + ")"; }).join("・") + "と時間が重複しています";
+        track.appendChild(badge);
+      } else if (actualStore !== store) {
+        // 重複ではなく、実際にはメイン・サブの他店舗で確定されたシフトが
+        // ここにも表示されているだけ、という案内表示
+        var info = document.createElement("div");
+        info.className = "shift-track-info";
+        info.textContent = "●";
+        info.title = name + "さんは" + actualStore + "に出勤中（" + mine.start + "–" + mine.end + "）";
+        track.appendChild(info);
+      }
     });
   });
 }

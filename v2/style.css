@@ -1434,6 +1434,18 @@ button {
   z-index: 4;
 }
 
+/* 重複警告（.shift-track-warning）とは別に、単に「他店舗で確定済みのシフトが
+   ここにも表示されているだけ」という案内用の控えめな印（2026/08/03〜） */
+.shift-track-info {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 10px;
+  color: #4a7ab5;
+  cursor: help;
+  z-index: 4;
+}
+
 .shift-gantt-summary-cell .sum-hours {
   font-weight: 600;
   color: #111111;
